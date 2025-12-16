@@ -15,182 +15,192 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
         
-        /* Animations et UI */
+        /* Animations */
         .modal-enter { opacity: 0; transform: scale(0.95); }
         .modal-enter-active { opacity: 1; transform: scale(1); transition: opacity 0.2s, transform 0.2s; }
+        .slide-in { animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
         button, input, select { min-height: 44px; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* Navigation Bas */
         .nav-active { color: #2563eb; }
         .nav-item { transition: color 0.2s; }
-        
-        /* Onglets */
-        .tab-content { display: none; animation: fadeIn 0.3s ease-out; }
-        .tab-content.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 h-screen flex flex-col overflow-hidden select-none">
 
-    <!-- HEADER FIXE -->
-    <header class="bg-white shadow-sm z-20 px-4 py-3 flex justify-between items-center shrink-0">
-        <div>
-            <h1 class="font-bold text-lg text-gray-800 flex items-center">
-                <i class="fas fa-chart-pie text-blue-600 mr-2"></i> Mon Budget
-            </h1>
-            <div class="text-[10px] text-gray-400 font-medium">
-                Salaire: <span id="salary-display" class="text-gray-600 font-bold">0 F</span>
+    <!-- HEADER NAVIGATION MOIS -->
+    <header class="bg-white shadow-sm z-20 px-2 py-3 shrink-0">
+        <div class="flex justify-between items-center mb-2 px-2">
+            <div>
+                <h1 class="font-bold text-gray-800 flex items-center text-sm"><i class="fas fa-wallet text-blue-600 mr-2"></i> Mon Budget</h1>
+                <!-- Correction : Ajout de l'affichage du salaire de base -->
+                <p class="text-[10px] text-gray-500">Base: <span id="salary-display" class="font-bold text-gray-700">0 F</span></p>
+            </div>
+            <div class="bg-green-50 px-3 py-1 rounded-lg border border-green-100 text-right">
+                <p class="text-[10px] text-green-600 uppercase font-bold">Reste à vivre</p>
+                <p id="header-balance" class="text-lg font-bold text-green-700 leading-none">0 F</p>
             </div>
         </div>
-        <div class="bg-green-50 px-3 py-1 rounded-lg border border-green-100 text-right">
-            <p class="text-[10px] text-green-600 uppercase font-bold">Dispo</p>
-            <p id="header-balance" class="text-lg font-bold text-green-700 leading-none">0 F</p>
+        
+        <!-- SÉLECTEUR DE MOIS -->
+        <div class="flex items-center justify-between bg-gray-100 rounded-xl p-1 mx-1">
+            <button onclick="changeMonth(-1)" class="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-blue-600 active:scale-90 transition"><i class="fas fa-chevron-left"></i></button>
+            <div class="text-center">
+                <span id="current-month-display" class="font-bold text-gray-800 text-lg capitalize block leading-tight">Décembre 2025</span>
+                <span id="month-status" class="text-[10px] uppercase font-bold text-green-500">En cours</span>
+            </div>
+            <button onclick="changeMonth(1)" class="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-blue-600 active:scale-90 transition"><i class="fas fa-chevron-right"></i></button>
         </div>
     </header>
 
-    <!-- CONTENU PRINCIPAL (Scrollable) -->
+    <!-- CONTENU PRINCIPAL -->
     <main class="flex-1 overflow-y-auto pb-24 p-4 hide-scrollbar relative" id="main-container">
         
-        <!-- VUE 1 : JOURNAL (Accueil) -->
+        <!-- VUE 1 : JOURNAL -->
         <div id="view-journal" class="tab-content active space-y-6">
             
-            <!-- Résumé Budget -->
+            <!-- État des Budgets du Mois -->
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
                 <div class="flex justify-between items-center mb-3">
-                    <h2 class="font-bold text-gray-700 text-sm uppercase">État du mois</h2>
-                    <button onclick="openSettings()" class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-md"><i class="fas fa-cog"></i> Config</button>
+                    <h2 class="font-bold text-gray-700 text-sm uppercase">Budgets Mensuels</h2>
+                    <button onclick="openSettings()" class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-md"><i class="fas fa-sliders-h"></i> Ajuster</button>
                 </div>
-                <div class="space-y-3" id="budget-bars">
-                    <!-- Généré par JS -->
+                <div class="space-y-3" id="budget-bars"></div>
+                
+                <!-- BOUTON CLÔTURE -->
+                <div id="closing-section" class="mt-4 pt-3 border-t border-gray-100 text-center hidden">
+                    <button onclick="startClosingProcess()" class="w-full py-2 bg-gray-800 text-white rounded-lg font-bold text-sm shadow-md hover:bg-black transition">
+                        <i class="fas fa-flag-checkered mr-2"></i> Clôturer ce Mois
+                    </button>
+                </div>
+                <div id="closed-msg" class="mt-4 pt-3 border-t border-gray-100 text-center hidden">
+                    <span class="inline-block bg-gray-100 text-gray-500 px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-lock mr-1"></i> Mois Clôturé</span>
                 </div>
             </div>
 
-            <!-- Formulaire Ajout Rapide -->
-            <div class="bg-white rounded-2xl shadow-lg border border-blue-100 p-5 relative overflow-hidden">
+            <!-- Formulaire Ajout (Caché si mois futur/passé clôturé) -->
+            <div id="add-transaction-card" class="bg-white rounded-2xl shadow-lg border border-blue-100 p-5 relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
                 <h2 class="font-bold text-gray-800 mb-4 flex items-center"><i class="fas fa-plus-circle text-blue-500 mr-2"></i>Nouvelle Opération</h2>
-                
                 <form id="transaction-form" class="space-y-4">
-                    <!-- Type -->
                     <div class="flex bg-gray-100 rounded-lg p-1">
                         <button type="button" id="btn-expense" onclick="setType('expense')" class="flex-1 py-2 rounded-md text-sm font-bold shadow-sm bg-white text-red-600 transition">Sortie (-)</button>
                         <button type="button" id="btn-income" onclick="setType('income')" class="flex-1 py-2 rounded-md text-sm font-bold text-gray-500 hover:text-green-600 transition">Entrée (+)</button>
                     </div>
                     <input type="hidden" id="trans-type" value="expense">
-
                     <div class="flex gap-3">
-                        <div class="flex-1">
-                            <label class="text-[10px] uppercase font-bold text-gray-400">Montant</label>
-                            <input type="number" id="amount" placeholder="0" class="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 font-bold text-gray-800 outline-none focus:ring-2 focus:ring-blue-500" required>
-                        </div>
-                        <div class="w-1/3">
-                            <label class="text-[10px] uppercase font-bold text-gray-400">Date</label>
-                            <input type="date" id="date" class="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 text-sm font-medium outline-none">
-                        </div>
+                        <div class="flex-1"><label class="text-[10px] uppercase font-bold text-gray-400">Montant</label><input type="number" id="amount" placeholder="0" class="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 font-bold text-gray-800 outline-none focus:ring-2 focus:ring-blue-500" required></div>
+                        <div class="w-1/3"><label class="text-[10px] uppercase font-bold text-gray-400">Jour</label><input type="date" id="date" class="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 text-sm font-medium outline-none"></div>
                     </div>
-
-                    <!-- Sélecteur Catégorie (Dynamique) -->
                     <div id="category-section">
                         <label class="text-[10px] uppercase font-bold text-gray-400 mb-1 block">Poste de dépense</label>
                         <div class="grid grid-cols-3 gap-2" id="category-buttons"></div>
                         <input type="hidden" id="category-input">
                     </div>
-
-                    <!-- Sélecteur Projet (Apparaît si on choisit "Projet" ou pour lier) -->
                     <div id="project-link-section" class="hidden bg-indigo-50 p-3 rounded-xl border border-indigo-100">
                         <label class="text-[10px] uppercase font-bold text-indigo-500 mb-1 block"><i class="fas fa-link mr-1"></i>Lier à un projet ?</label>
-                        <select id="project-select" class="w-full bg-white border border-indigo-200 rounded-lg p-2 text-sm text-indigo-900 outline-none">
-                            <option value="">-- Aucun projet spécifique --</option>
-                        </select>
+                        <select id="project-select" class="w-full bg-white border border-indigo-200 rounded-lg p-2 text-sm text-indigo-900 outline-none"><option value="">-- Aucun --</option></select>
                     </div>
-
-                    <!-- Description (Revenu) -->
                     <div id="desc-section" class="hidden">
                         <label class="text-[10px] uppercase font-bold text-gray-400">Description</label>
-                        <input type="text" id="description" placeholder="Ex: Prime, Cadeau..." class="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 font-medium text-sm outline-none">
+                        <input type="text" id="description" placeholder="Ex: Prime..." class="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 font-medium text-sm outline-none">
                     </div>
-
                     <button type="submit" id="submit-btn" class="w-full py-3 bg-red-600 text-white rounded-xl font-bold shadow-md hover:bg-red-700 active:scale-95 transition">Enregistrer</button>
                 </form>
             </div>
 
-            <!-- Liste Dernières Opérations -->
+            <!-- Liste groupée par jour -->
             <div class="pb-4">
-                <h3 class="font-bold text-gray-500 text-xs uppercase mb-3 ml-1">Historique Récent</h3>
-                <ul id="journal-list" class="space-y-3"></ul>
+                <h3 class="font-bold text-gray-500 text-xs uppercase mb-3 ml-1">Journal du Mois</h3>
+                <div id="journal-list" class="space-y-4"></div>
             </div>
         </div>
 
-        <!-- VUE 2 : PROJETS (Planificateur) -->
+        <!-- VUE 2 : PROJETS -->
         <div id="view-projects" class="tab-content space-y-6">
             <div class="flex justify-between items-end">
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-800">Mes Projets</h2>
-                    <p class="text-xs text-gray-500">Réalise tes rêves étape par étape.</p>
-                </div>
+                <div><h2 class="text-2xl font-bold text-gray-800">Mes Projets</h2><p class="text-xs text-gray-500">Réalise tes rêves étape par étape.</p></div>
                 <button onclick="openProjectModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md active:scale-95 transition"><i class="fas fa-plus mr-1"></i> Nouveau</button>
             </div>
+            <div id="projects-list" class="space-y-4"></div>
+        </div>
 
-            <div id="projects-list" class="space-y-4">
-                <!-- Les cartes projets seront ici -->
-                <div class="text-center py-10 text-gray-400">
-                    <i class="fas fa-rocket text-4xl mb-3 text-gray-200"></i>
-                    <p>Aucun projet en cours.</p>
-                    <p class="text-sm">Ajoute un rêve (Ordi, Montre...) pour commencer !</p>
+        <!-- VUE 3 : BILAN -->
+        <div id="view-stats" class="tab-content space-y-6">
+            <h2 class="text-2xl font-bold text-gray-800">Bilan Annuel</h2>
+            <div id="stats-list" class="space-y-4"></div>
+
+            <!-- ZONE SÉCURITÉ -->
+            <div class="mt-8 bg-blue-50 border border-blue-100 rounded-2xl p-5">
+                <h3 class="font-bold text-blue-800 mb-2"><i class="fas fa-shield-alt mr-2"></i>Sécurité des Données</h3>
+                <div class="flex gap-3">
+                    <button onclick="exportData()" class="flex-1 py-3 bg-white border border-blue-200 text-blue-700 font-bold rounded-xl shadow-sm text-sm"><i class="fas fa-download mr-2"></i>Sauver</button>
+                    <button onclick="importDataClick()" class="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-md text-sm"><i class="fas fa-upload mr-2"></i>Restaurer</button>
+                    <input type="file" id="import-input" class="hidden" onchange="importDataFile(this)">
                 </div>
             </div>
         </div>
-
-        <!-- VUE 3 : BILAN (Stats) -->
-        <div id="view-stats" class="tab-content space-y-6">
-            <h2 class="text-2xl font-bold text-gray-800">Bilan Mensuel</h2>
-            <div id="stats-list" class="space-y-4">
-                <!-- Liste des mois -->
-            </div>
-        </div>
-
     </main>
 
-    <!-- NAVIGATION BAS (App Bar) -->
+    <!-- NAVIGATION BAS -->
     <nav class="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex justify-around py-3 z-40 pb-safe">
-        <button onclick="switchTab('journal')" class="nav-item nav-active flex flex-col items-center w-1/3" id="nav-journal">
-            <i class="fas fa-home text-xl mb-1"></i>
-            <span class="text-[10px] font-bold">Journal</span>
-        </button>
-        <button onclick="switchTab('projects')" class="nav-item text-gray-400 flex flex-col items-center w-1/3" id="nav-projects">
-            <i class="fas fa-rocket text-xl mb-1"></i>
-            <span class="text-[10px] font-bold">Projets</span>
-        </button>
-        <button onclick="switchTab('stats')" class="nav-item text-gray-400 flex flex-col items-center w-1/3" id="nav-stats">
-            <i class="fas fa-chart-bar text-xl mb-1"></i>
-            <span class="text-[10px] font-bold">Bilan</span>
-        </button>
+        <button onclick="switchTab('journal')" class="nav-item nav-active flex flex-col items-center w-1/3" id="nav-journal"><i class="fas fa-calendar-day text-xl mb-1"></i><span class="text-[10px] font-bold">Journal</span></button>
+        <button onclick="switchTab('projects')" class="nav-item text-gray-400 flex flex-col items-center w-1/3" id="nav-projects"><i class="fas fa-rocket text-xl mb-1"></i><span class="text-[10px] font-bold">Projets</span></button>
+        <button onclick="switchTab('stats')" class="nav-item text-gray-400 flex flex-col items-center w-1/3" id="nav-stats"><i class="fas fa-chart-bar text-xl mb-1"></i><span class="text-[10px] font-bold">Bilan</span></button>
     </nav>
 
-    <!-- MODAL PARAMÈTRES (Catégories & Salaire) -->
+    <!-- MODAL CLÔTURE -->
+    <div id="closing-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+            <div class="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4 text-yellow-600 text-3xl"><i class="fas fa-trophy"></i></div>
+            <h3 class="font-bold text-2xl text-gray-800 mb-1">Bilan du Mois</h3>
+            <p class="text-sm text-gray-500 mb-6">Voici ce qu'il te reste :</p>
+            
+            <div class="text-4xl font-bold text-green-600 mb-2" id="closing-surplus">0 F</div>
+            <p class="text-xs text-gray-400 mb-6">Ce montant est un SURPLUS non dépensé.</p>
+
+            <div class="space-y-3">
+                <button onclick="processClosing('project')" class="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold shadow-lg active:scale-95 transition">
+                    <i class="fas fa-rocket mr-2"></i> Investir dans un Projet
+                </button>
+                <button onclick="processClosing('carryover')" class="w-full py-4 bg-green-600 text-white rounded-xl font-bold shadow-lg active:scale-95 transition">
+                    <i class="fas fa-calendar-plus mr-2"></i> Reporter au mois suivant
+                </button>
+                <button onclick="processClosing('keep')" class="w-full py-3 bg-gray-100 text-gray-600 rounded-xl font-bold active:scale-95 transition">
+                    Ne rien faire (Juste fermer)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL INVESTISSEMENT (Choix Projet) -->
+    <div id="invest-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <h3 class="font-bold text-lg text-gray-800 mb-4">Quel projet financer ?</h3>
+            <div id="invest-list" class="space-y-2 max-h-60 overflow-y-auto mb-4"></div>
+            <button onclick="closeModal('invest-modal')" class="w-full py-3 bg-gray-100 text-gray-600 rounded-xl font-bold">Annuler</button>
+        </div>
+    </div>
+
+    <!-- MODAL PARAMÈTRES -->
     <div id="settings-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
             <div class="p-4 border-b border-gray-100 flex justify-between items-center">
                 <h3 class="font-bold text-lg text-gray-800">Paramètres</h3>
                 <button onclick="closeModal('settings-modal')" class="text-gray-400"><i class="fas fa-times text-xl"></i></button>
             </div>
-            <div class="p-4 overflow-y-auto flex-1 hide-scrollbar" id="settings-content">
-                <!-- Rempli par JS -->
-            </div>
+            <div class="p-4 overflow-y-auto flex-1 hide-scrollbar" id="settings-content"></div>
             <div class="p-4 border-t bg-gray-50 rounded-b-2xl flex gap-3">
                  <button onclick="addNewCat()" class="flex-1 py-3 border border-blue-200 text-blue-600 rounded-xl font-bold text-sm">Nouveau Poste</button>
                  <button onclick="saveSettings()" class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg text-sm">Sauvegarder</button>
             </div>
-            <div class="p-4 pt-0 bg-gray-50 text-center">
-                 <div class="flex justify-center gap-4 text-xs text-gray-500 underline">
-                    <span onclick="exportData()" class="cursor-pointer">Sauvegarder Données</span>
-                    <span onclick="importDataClick()" class="cursor-pointer">Restaurer</span>
-                    <span onclick="fullReset()" class="cursor-pointer text-red-400">Reset Total</span>
-                 </div>
-                 <input type="file" id="import-input" class="hidden" onchange="importDataFile(this)">
-            </div>
+            <div class="p-2 text-center"><button onclick="fullReset()" class="text-xs text-red-400 underline p-2">Effacer toutes les données (Reset)</button></div>
         </div>
     </div>
 
@@ -199,498 +209,355 @@
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
             <h3 class="font-bold text-xl text-indigo-800 mb-4">Nouveau Projet</h3>
             <div class="space-y-4">
-                <div>
-                    <label class="text-xs uppercase font-bold text-gray-400">Nom du projet</label>
-                    <input type="text" id="proj-name" placeholder="Ex: Ordinateur, Voyage..." class="w-full p-3 bg-indigo-50 rounded-xl border border-indigo-100 font-bold outline-none">
-                </div>
-                <div>
-                    <label class="text-xs uppercase font-bold text-gray-400">Coût Total (Objectif)</label>
-                    <input type="number" id="proj-cost" placeholder="0" class="w-full p-3 bg-indigo-50 rounded-xl border border-indigo-100 font-bold outline-none">
-                </div>
-                <div>
-                    <label class="text-xs uppercase font-bold text-gray-400">Épargne prévue / mois</label>
-                    <input type="number" id="proj-monthly" placeholder="0" class="w-full p-3 bg-indigo-50 rounded-xl border border-indigo-100 font-bold outline-none">
-                    <p class="text-[10px] text-gray-400 mt-1">Sert à calculer la date de fin estimée.</p>
-                </div>
+                <div><label class="text-xs uppercase font-bold text-gray-400">Nom</label><input type="text" id="proj-name" placeholder="Ex: Ordi..." class="w-full p-3 bg-indigo-50 rounded-xl border border-indigo-100 font-bold outline-none"></div>
+                <div><label class="text-xs uppercase font-bold text-gray-400">Coût Total</label><input type="number" id="proj-cost" placeholder="0" class="w-full p-3 bg-indigo-50 rounded-xl border border-indigo-100 font-bold outline-none"></div>
+                <div><label class="text-xs uppercase font-bold text-gray-400">Épargne / mois</label><input type="number" id="proj-monthly" placeholder="0" class="w-full p-3 bg-indigo-50 rounded-xl border border-indigo-100 font-bold outline-none"><p class="text-[10px] text-gray-400 mt-1">Pour estimer la durée.</p></div>
             </div>
-            <div class="mt-6 flex gap-3">
-                <button onclick="closeModal('project-modal')" class="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold">Annuler</button>
-                <button onclick="createProject()" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg">Créer</button>
-            </div>
+            <div class="mt-6 flex gap-3"><button onclick="closeModal('project-modal')" class="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold">Annuler</button><button onclick="createProject()" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg">Créer</button></div>
         </div>
     </div>
 
     <script>
         // --- DONNÉES & ÉTAT ---
         let salary = parseInt(localStorage.getItem('salary')) || 0;
-        
-        // Structure Catégories par défaut
-        const defaultCats = [
-            { id: 'c1', name: 'Banque', limit: 0 }, { id: 'c2', name: 'Maman', limit: 0 },
-            { id: 'c3', name: 'Transport', limit: 0 }, { id: 'c4', name: 'Projet', limit: 0 },
-            { id: 'c5', name: 'Imprévus', limit: 0 }, { id: 'c6', name: 'Plaisir', limit: 0 },
-            { id: 'c7', name: 'Divers', limit: 0 }
-        ];
+        const defaultCats = [ { id: 'c1', name: 'Banque', limit: 0 }, { id: 'c2', name: 'Maman', limit: 0 }, { id: 'c3', name: 'Transport', limit: 0 }, { id: 'c4', name: 'Projet', limit: 0 }, { id: 'c5', name: 'Imprévus', limit: 0 }, { id: 'c6', name: 'Plaisir', limit: 0 }, { id: 'c7', name: 'Divers', limit: 0 } ];
         let categories = JSON.parse(localStorage.getItem('categories')) || defaultCats;
         let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
         let projects = JSON.parse(localStorage.getItem('projects')) || [];
+        let closedMonths = JSON.parse(localStorage.getItem('closedMonths')) || [];
+
+        // Gestion Date Courante (Mois affiché)
+        let displayDate = new Date();
+        // Pour éviter les bugs de fuseau, on fixe au 1er du mois
+        displayDate.setDate(1); 
 
         // --- NAVIGATION ---
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.getElementById('view-' + tabId).classList.add('active');
-            
-            document.querySelectorAll('.nav-item').forEach(el => {
-                el.classList.remove('nav-active', 'text-blue-600');
-                el.classList.add('text-gray-400');
-            });
+            document.querySelectorAll('.nav-item').forEach(el => { el.classList.remove('nav-active', 'text-blue-600'); el.classList.add('text-gray-400'); });
             const btn = document.getElementById('nav-' + tabId);
-            btn.classList.remove('text-gray-400');
-            btn.classList.add('nav-active', 'text-blue-600');
-
+            btn.classList.remove('text-gray-400'); btn.classList.add('nav-active', 'text-blue-600');
             if(tabId === 'projects') renderProjects();
             if(tabId === 'stats') renderStats();
         }
 
-        // --- DASHBOARD (JOURNAL) ---
+        function changeMonth(delta) {
+            displayDate.setMonth(displayDate.getMonth() + delta);
+            initDashboard();
+        }
+
+        // --- DASHBOARD CORE ---
         function initDashboard() {
-            document.getElementById('salary-display').innerText = salary.toLocaleString() + ' F';
-            document.getElementById('date').valueAsDate = new Date();
-            renderCategoriesBtn();
-            renderBudgetBars();
-            renderHistory();
-            updateGlobalBalance();
+            // Mise à jour En-tête Mois
+            const options = { month: 'long', year: 'numeric' };
+            document.getElementById('current-month-display').innerText = displayDate.toLocaleDateString('fr-FR', options);
+            
+            // Vérifier si mois clôturé ou futur
+            const monthKey = getMonthKey(displayDate);
+            const isClosed = closedMonths.includes(monthKey);
+            const now = new Date();
+            const currentMonthKey = getMonthKey(now);
+            
+            // État visuel
+            const statusEl = document.getElementById('month-status');
+            const addCard = document.getElementById('add-transaction-card');
+            const closeBtn = document.getElementById('closing-section');
+            const closedMsg = document.getElementById('closed-msg');
+
+            if (isClosed) {
+                statusEl.innerText = "Clôturé"; statusEl.className = "text-[10px] uppercase font-bold text-gray-400";
+                addCard.classList.add('hidden');
+                closeBtn.classList.add('hidden');
+                closedMsg.classList.remove('hidden');
+            } else if (monthKey > currentMonthKey) {
+                statusEl.innerText = "Futur (Prévisions)"; statusEl.className = "text-[10px] uppercase font-bold text-indigo-500";
+                addCard.classList.remove('hidden'); // On peut planifier
+                closeBtn.classList.add('hidden');
+                closedMsg.classList.add('hidden');
+            } else {
+                statusEl.innerText = "En cours"; statusEl.className = "text-[10px] uppercase font-bold text-green-500";
+                addCard.classList.remove('hidden');
+                closeBtn.classList.remove('hidden');
+                closedMsg.classList.add('hidden');
+            }
+
+            // Date par défaut dans le formulaire = Aujourd'hui ou 1er du mois affiché
+            const inputDate = document.getElementById('date');
+            if(monthKey === currentMonthKey) {
+                inputDate.valueAsDate = new Date();
+            } else {
+                // Mettre le 1er du mois affiché
+                const d = new Date(displayDate);
+                d.setDate(2); // Astuce pour éviter décalage UTC
+                inputDate.value = d.toISOString().split('T')[0];
+            }
+
+            // Correction : Vérifier l'existence de l'élément avant de le mettre à jour
+            const salaryEl = document.getElementById('salary-display');
+            if(salaryEl) salaryEl.innerText = salary.toLocaleString() + ' F';
+
+            renderCategoriesBtn(); 
+            renderBudgetBars(monthKey); 
+            renderHistory(monthKey); 
+            updateGlobalBalance(monthKey); 
             updateProjectSelect();
         }
 
-        function updateGlobalBalance() {
-            let totalExp = 0, totalInc = 0;
-            transactions.forEach(t => t.type === 'expense' ? totalExp += t.amount : totalInc += t.amount);
-            const balance = salary + totalInc - totalExp;
-            const el = document.getElementById('header-balance');
-            el.innerText = balance.toLocaleString() + ' F';
-            el.className = `text-lg font-bold leading-none ${balance < 0 ? 'text-red-600' : 'text-green-700'}`;
+        function getMonthKey(date) {
+            return `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2, '0')}`;
         }
 
-        function renderBudgetBars() {
-            const container = document.getElementById('budget-bars');
-            container.innerHTML = '';
+        function updateGlobalBalance(monthKey) {
+            // Filtrer transactions du mois
+            const monthlyTrans = transactions.filter(t => t.date.startsWith(monthKey));
             
-            categories.forEach(cat => {
-                const spent = transactions
-                    .filter(t => t.type === 'expense' && t.categoryId === cat.id)
-                    .reduce((sum, t) => sum + t.amount, 0);
-                
-                // Si limit est 0, on affiche juste le dépensé sans barre de progression compliquée
-                let percent = 0;
-                let barColor = 'bg-blue-500';
-                let remainingText = '';
+            let totalExp = 0, totalInc = 0; 
+            monthlyTrans.forEach(t => t.type === 'expense' ? totalExp += t.amount : totalInc += t.amount);
+            
+            // Bilan du mois = Salaire + Entrées du mois - Sorties du mois
+            const balance = salary + totalInc - totalExp;
+            
+            const el = document.getElementById('header-balance'); 
+            el.innerText = balance.toLocaleString() + ' F';
+            el.className = `text-lg font-bold leading-none ${balance < 0 ? 'text-red-600' : 'text-green-700'}`;
+            return balance; // Retourne pour usage clôture
+        }
 
+        function renderBudgetBars(monthKey) {
+            const container = document.getElementById('budget-bars'); container.innerHTML = '';
+            const monthlyTrans = transactions.filter(t => t.date.startsWith(monthKey));
+
+            categories.forEach(cat => {
+                const spent = monthlyTrans.filter(t => t.type === 'expense' && t.categoryId === cat.id).reduce((sum, t) => sum + t.amount, 0);
+                let percent = 0; let barColor = 'bg-blue-500'; let remainingText = '';
                 if (cat.limit > 0) {
                     percent = Math.min((spent / cat.limit) * 100, 100);
                     const rest = cat.limit - spent;
                     barColor = rest < 0 ? 'bg-red-500' : (rest < cat.limit * 0.2 ? 'bg-yellow-500' : 'bg-blue-500');
                     remainingText = `<span class="${rest < 0 ? 'text-red-500' : 'text-gray-400'} text-[10px] font-bold">Reste: ${rest.toLocaleString()}</span>`;
                 }
-
-                container.innerHTML += `
-                    <div class="flex items-center gap-3">
-                        <div class="w-20 shrink-0 text-xs font-bold text-gray-700 truncate">${cat.name}</div>
-                        <div class="flex-1">
-                            <div class="flex justify-between mb-1">
-                                <span class="text-[10px] text-gray-500">${spent.toLocaleString()} / ${cat.limit > 0 ? cat.limit.toLocaleString() : '∞'}</span>
-                                ${remainingText}
-                            </div>
-                            <div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                                <div class="${barColor} h-1.5 rounded-full transition-all duration-500" style="width: ${percent}%"></div>
-                            </div>
-                        </div>
-                    </div>`;
+                container.innerHTML += `<div class="flex items-center gap-3"><div class="w-20 shrink-0 text-xs font-bold text-gray-700 truncate">${cat.name}</div><div class="flex-1"><div class="flex justify-between mb-1"><span class="text-[10px] text-gray-500">${spent.toLocaleString()} / ${cat.limit > 0 ? cat.limit.toLocaleString() : '∞'}</span>${remainingText}</div><div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden"><div class="${barColor} h-1.5 rounded-full transition-all duration-500" style="width: ${percent}%"></div></div></div></div>`;
             });
         }
 
-        function renderHistory() {
-            const list = document.getElementById('journal-list');
-            list.innerHTML = '';
-            const recent = [...transactions].reverse().slice(0, 10);
+        function renderHistory(monthKey) {
+            const list = document.getElementById('journal-list'); list.innerHTML = '';
             
-            if(recent.length === 0) {
-                list.innerHTML = '<li class="text-center text-xs text-gray-400 py-4 italic">Aucune opération ce mois-ci</li>';
-                return;
-            }
+            // Filtrer par mois
+            const monthlyTrans = transactions.filter(t => t.date.startsWith(monthKey));
+            
+            if(monthlyTrans.length === 0) { list.innerHTML = '<div class="text-center text-xs text-gray-400 py-6 italic border border-dashed border-gray-200 rounded-xl">Aucune opération ce mois-ci</div>'; return; }
 
-            recent.forEach(t => {
-                let label = t.desc;
-                let color = t.type === 'expense' ? 'text-red-600' : 'text-green-600';
-                let sign = t.type === 'expense' ? '-' : '+';
+            // Grouper par jour
+            const groups = {};
+            monthlyTrans.forEach(t => {
+                if(!groups[t.date]) groups[t.date] = [];
+                groups[t.date].push(t);
+            });
+
+            // Trier les jours (Descendant)
+            const sortedDays = Object.keys(groups).sort().reverse();
+
+            sortedDays.forEach(day => {
+                const dayDate = new Date(day);
+                const dayName = dayDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
                 
-                if(t.type === 'expense') {
-                    const c = categories.find(x => x.id === t.categoryId);
-                    label = c ? c.name : 'Dépense';
-                    if(t.projectId) {
-                        const p = projects.find(x => x.id === t.projectId);
-                        if(p) label += ` <span class="bg-indigo-100 text-indigo-700 px-1 rounded text-[10px] ml-1">Example: ${p.name}</span>`; // Correction visuelle
-                        if(p) label = `${c.name} <i class="fas fa-arrow-right text-[8px] text-gray-400 mx-1"></i> ${p.name}`;
+                let dayHtml = `<div class="slide-in"><div class="sticky top-0 bg-gray-50/95 backdrop-blur py-2 px-1 z-10 text-xs font-bold text-gray-500 uppercase tracking-wide border-b border-gray-200 mb-2">${dayName}</div><div class="space-y-2">`;
+                
+                // Trier transactions du jour (plus récent en haut si on avait l'heure, ici par ordre d'ajout inversé approximatif via id)
+                groups[day].sort((a,b) => b.id - a.id).forEach(t => {
+                    let label = t.desc; let color = t.type === 'expense' ? 'text-red-600' : 'text-green-600'; let sign = t.type === 'expense' ? '-' : '+';
+                    if(t.type === 'expense') {
+                        const c = categories.find(x => x.id === t.categoryId); label = c ? c.name : 'Dépense';
+                        if(t.projectId) { const p = projects.find(x => x.id === t.projectId); if(p) label = `${c.name} <i class="fas fa-arrow-right text-[8px] text-gray-400 mx-1"></i> ${p.name}`; }
                     }
-                }
-
-                list.innerHTML += `
-                    <li class="flex justify-between items-center bg-white border border-gray-50 p-3 rounded-xl shadow-sm">
-                        <div>
-                            <div class="font-bold text-sm text-gray-700">${label}</div>
-                            <div class="text-[10px] text-gray-400">${new Date(t.date).toLocaleDateString()}</div>
-                        </div>
-                        <div class="font-mono font-bold ${color}">${sign} ${t.amount.toLocaleString()}</div>
-                        <button onclick="deleteTrans(${t.id})" class="ml-3 text-gray-300 hover:text-red-400"><i class="fas fa-trash-alt text-xs"></i></button>
-                    </li>`;
+                    dayHtml += `<div class="flex justify-between items-center bg-white border border-gray-100 p-3 rounded-xl shadow-sm"><div><div class="font-bold text-sm text-gray-700">${label}</div></div><div class="flex items-center"><div class="font-mono font-bold ${color} mr-3">${sign} ${t.amount.toLocaleString()}</div><button onclick="deleteTrans(${t.id})" class="text-gray-200 hover:text-red-400"><i class="fas fa-trash-alt text-xs"></i></button></div></div>`;
+                });
+                dayHtml += `</div></div>`;
+                list.innerHTML += dayHtml;
             });
         }
 
-        // --- TRANSACTION FORM ---
+        // --- GESTION FORMULAIRE ---
         function setType(type) {
             document.getElementById('trans-type').value = type;
-            const btnExp = document.getElementById('btn-expense');
-            const btnInc = document.getElementById('btn-income');
-            const catSec = document.getElementById('category-section');
-            const descSec = document.getElementById('desc-section');
-            const subBtn = document.getElementById('submit-btn');
-
+            const btnExp = document.getElementById('btn-expense'); const btnInc = document.getElementById('btn-income');
+            const catSec = document.getElementById('category-section'); const descSec = document.getElementById('desc-section'); const subBtn = document.getElementById('submit-btn');
             if(type === 'expense') {
-                btnExp.className = "flex-1 py-2 rounded-md text-sm font-bold shadow-sm bg-white text-red-600 transition";
-                btnInc.className = "flex-1 py-2 rounded-md text-sm font-bold text-gray-500 hover:text-green-600 transition";
-                catSec.classList.remove('hidden');
-                descSec.classList.add('hidden');
-                subBtn.classList.replace('bg-green-600', 'bg-red-600');
-                subBtn.classList.replace('hover:bg-green-700', 'hover:bg-red-700');
+                btnExp.className = "flex-1 py-2 rounded-md text-sm font-bold shadow-sm bg-white text-red-600 transition"; btnInc.className = "flex-1 py-2 rounded-md text-sm font-bold text-gray-500 hover:text-green-600 transition";
+                catSec.classList.remove('hidden'); descSec.classList.add('hidden'); subBtn.classList.replace('bg-green-600', 'bg-red-600'); subBtn.classList.replace('hover:bg-green-700', 'hover:bg-red-700');
             } else {
-                btnExp.className = "flex-1 py-2 rounded-md text-sm font-bold text-gray-500 hover:text-red-600 transition";
-                btnInc.className = "flex-1 py-2 rounded-md text-sm font-bold shadow-sm bg-white text-green-600 transition";
-                catSec.classList.add('hidden');
-                descSec.classList.remove('hidden');
-                subBtn.classList.replace('bg-red-600', 'bg-green-600');
-                subBtn.classList.replace('hover:bg-red-700', 'hover:bg-green-700');
+                btnExp.className = "flex-1 py-2 rounded-md text-sm font-bold text-gray-500 hover:text-red-600 transition"; btnInc.className = "flex-1 py-2 rounded-md text-sm font-bold shadow-sm bg-white text-green-600 transition";
+                catSec.classList.add('hidden'); descSec.classList.remove('hidden'); subBtn.classList.replace('bg-red-600', 'bg-green-600'); subBtn.classList.replace('hover:bg-red-700', 'hover:bg-green-700');
             }
         }
-
         function renderCategoriesBtn() {
-            const div = document.getElementById('category-buttons');
-            div.innerHTML = '';
+            const div = document.getElementById('category-buttons'); div.innerHTML = '';
             categories.forEach(c => {
-                const b = document.createElement('button');
-                b.type = 'button';
-                b.className = 'p-2 rounded-lg border border-gray-200 text-[10px] font-bold text-gray-600 bg-white hover:bg-blue-50 truncate transition cat-btn';
-                b.innerText = c.name;
-                b.onclick = () => selectCat(b, c.id, c.name);
-                div.appendChild(b);
+                const b = document.createElement('button'); b.type = 'button'; b.className = 'p-2 rounded-lg border border-gray-200 text-[10px] font-bold text-gray-600 bg-white hover:bg-blue-50 truncate transition cat-btn';
+                b.innerText = c.name; b.onclick = () => selectCat(b, c.id, c.name); div.appendChild(b);
             });
         }
-
         function selectCat(btn, id, name) {
             document.querySelectorAll('.cat-btn').forEach(b => b.className = 'p-2 rounded-lg border border-gray-200 text-[10px] font-bold text-gray-600 bg-white hover:bg-blue-50 truncate transition cat-btn');
             btn.className = 'p-2 rounded-lg border border-blue-500 text-[10px] font-bold text-white bg-blue-600 shadow-md truncate transition cat-btn';
             document.getElementById('category-input').value = id;
-
-            // Logique intelligente : Si le nom contient "projet", on montre le lien projet
             const projSec = document.getElementById('project-link-section');
-            if(name.toLowerCase().includes('projet') || name.toLowerCase().includes('épargne')) {
-                projSec.classList.remove('hidden');
-            } else {
-                projSec.classList.add('hidden');
-                document.getElementById('project-select').value = "";
-            }
+            if(name.toLowerCase().includes('projet') || name.toLowerCase().includes('épargne')) { projSec.classList.remove('hidden'); } else { projSec.classList.add('hidden'); document.getElementById('project-select').value = ""; }
         }
-
-        function updateProjectSelect() {
-            const sel = document.getElementById('project-select');
-            sel.innerHTML = '<option value="">-- Aucun projet spécifique --</option>';
-            projects.forEach(p => {
-                sel.innerHTML += `<option value="${p.id}">${p.name}</option>`;
-            });
-        }
-
         document.getElementById('transaction-form').onsubmit = (e) => {
             e.preventDefault();
-            const type = document.getElementById('trans-type').value;
-            const amount = parseInt(document.getElementById('amount').value);
+            const type = document.getElementById('trans-type').value; const amount = parseInt(document.getElementById('amount').value);
             if(!amount) return;
-            
-            const t = {
-                id: Date.now(),
-                date: document.getElementById('date').value,
-                amount: amount,
-                type: type
-            };
-
+            // On utilise la date choisie dans le formulaire
+            const t = { id: Date.now(), date: document.getElementById('date').value, amount: amount, type: type };
             if(type === 'expense') {
-                const catId = document.getElementById('category-input').value;
-                if(!catId) { alert("Choisis un poste !"); return; }
-                t.categoryId = catId;
-                
-                // Lien Projet
-                const projId = document.getElementById('project-select').value;
-                if(projId) t.projectId = projId;
-                
-                t.desc = ""; // Sera calculé à l'affichage
-            } else {
-                t.desc = document.getElementById('description').value || "Revenu";
-            }
-
-            transactions.push(t);
-            saveData();
-            initDashboard();
-            e.target.reset();
-            document.getElementById('date').valueAsDate = new Date();
-            // Reset visuel
-            setType(type); // Garder le type actuel
-            document.getElementById('project-link-section').classList.add('hidden');
+                const catId = document.getElementById('category-input').value; if(!catId) { alert("Choisis un poste !"); return; }
+                t.categoryId = catId; const projId = document.getElementById('project-select').value; if(projId) t.projectId = projId; t.desc = "";
+            } else { t.desc = document.getElementById('description').value || "Revenu"; }
+            transactions.push(t); saveData(); initDashboard(); e.target.reset(); 
+            // Reset Date au mois en cours d'affichage
+            const monthKey = getMonthKey(displayDate);
+            const todayKey = getMonthKey(new Date());
+            if(monthKey === todayKey) document.getElementById('date').valueAsDate = new Date();
+            setType(type); document.getElementById('project-link-section').classList.add('hidden');
         };
+        function deleteTrans(id) { if(confirm("Supprimer ?")) { transactions = transactions.filter(t => t.id !== id); saveData(); initDashboard(); } }
 
-        function deleteTrans(id) {
-            if(confirm("Supprimer ?")) {
-                transactions = transactions.filter(t => t.id !== id);
-                saveData();
-                initDashboard();
-            }
-        }
-
-        // --- MODULE PROJETS ---
-        function renderProjects() {
-            const list = document.getElementById('projects-list');
-            list.innerHTML = '';
-            
-            if(projects.length === 0) {
-                list.innerHTML = `<div class="text-center py-10 text-gray-400"><i class="fas fa-rocket text-4xl mb-3 text-gray-200"></i><p>Aucun projet en cours.</p><p class="text-sm">Ajoute un rêve (Ordi, Montre...) pour commencer !</p></div>`;
-                return;
-            }
-
-            projects.forEach(p => {
-                // Calculer l'épargne actuelle (somme des transactions liées à ce projet)
-                const saved = transactions
-                    .filter(t => t.projectId == p.id)
-                    .reduce((sum, t) => sum + t.amount, 0);
-                
-                const percent = Math.min((saved / p.cost) * 100, 100);
-                const remaining = p.cost - saved;
-                
-                // Estimation temps
-                let timeMsg = "Terminé ! 🎉";
-                if(remaining > 0) {
-                    if(p.monthlyTarget > 0) {
-                        const months = Math.ceil(remaining / p.monthlyTarget);
-                        timeMsg = `Encore environ <b>${months} mois</b>`;
-                    } else {
-                        timeMsg = "Défini un montant mensuel pour l'estimation";
-                    }
-                }
-
-                list.innerHTML += `
-                    <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden">
-                        <div class="flex justify-between items-start mb-2">
-                            <div>
-                                <h3 class="font-bold text-gray-800 text-lg">${p.name}</h3>
-                                <p class="text-xs text-gray-500">Obj: ${p.cost.toLocaleString()} F</p>
-                            </div>
-                            <div class="text-right">
-                                <span class="block text-xl font-bold text-indigo-600">${saved.toLocaleString()} F</span>
-                                <span class="text-[10px] text-gray-400">Épargnés</span>
-                            </div>
-                        </div>
-                        
-                        <div class="w-full bg-gray-100 rounded-full h-2 mb-2">
-                            <div class="bg-indigo-500 h-2 rounded-full transition-all" style="width: ${percent}%"></div>
-                        </div>
-                        
-                        <div class="flex justify-between items-center bg-indigo-50 p-2 rounded-lg text-xs text-indigo-800">
-                            <span><i class="fas fa-hourglass-half mr-1"></i> ${timeMsg}</span>
-                            <button onclick="deleteProject(${p.id})" class="text-indigo-300 hover:text-red-500"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </div>`;
-            });
-        }
-
-        function openProjectModal() {
-            document.getElementById('project-modal').classList.remove('hidden');
-        }
+        // --- CLÔTURE DU MOIS ---
+        let currentSurplus = 0;
         
-        function createProject() {
-            const name = document.getElementById('proj-name').value;
-            const cost = parseInt(document.getElementById('proj-cost').value);
-            const monthly = parseInt(document.getElementById('proj-monthly').value);
+        function startClosingProcess() {
+            const monthKey = getMonthKey(displayDate);
+            currentSurplus = updateGlobalBalance(monthKey); // Récupère le surplus
             
-            if(name && cost) {
-                projects.push({
-                    id: Date.now(),
-                    name: name,
-                    cost: cost,
-                    monthlyTarget: monthly || 0
-                });
-                saveData();
-                renderProjects();
-                updateProjectSelect(); // update select in journal
-                closeModal('project-modal');
-                // clear inputs
-                document.getElementById('proj-name').value = '';
-                document.getElementById('proj-cost').value = '';
-                document.getElementById('proj-monthly').value = '';
-            }
-        }
-
-        function deleteProject(id) {
-            if(confirm("Supprimer ce projet ? (L'argent épargné reste dans l'historique)")) {
-                projects = projects.filter(p => p.id !== id);
-                saveData();
-                renderProjects();
-                updateProjectSelect();
-            }
-        }
-
-        // --- MODULE BILAN (STATS) ---
-        function renderStats() {
-            const list = document.getElementById('stats-list');
-            list.innerHTML = '';
-            
-            // Regrouper par mois (YYYY-MM)
-            const stats = {};
-            
-            transactions.forEach(t => {
-                const date = new Date(t.date);
-                const key = `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2, '0')}`;
-                
-                if(!stats[key]) stats[key] = { income: 0, expense: 0 };
-                
-                if(t.type === 'expense') stats[key].expense += t.amount;
-                else stats[key].income += t.amount;
-            });
-            
-            // Trier décroissant
-            const keys = Object.keys(stats).sort().reverse();
-            
-            if(keys.length === 0) {
-                list.innerHTML = '<p class="text-center text-gray-400 mt-10">Pas assez de données pour le bilan.</p>';
+            if(currentSurplus <= 0) {
+                if(confirm("Tu es à zéro ou en négatif ce mois-ci. On ferme quand même ? (Rien à reporter)")) {
+                    closedMonths.push(monthKey);
+                    saveData();
+                    initDashboard();
+                }
                 return;
             }
 
-            keys.forEach(k => {
-                const [year, month] = k.split('-');
-                const monthName = new Date(year, month - 1).toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
-                const s = stats[k];
-                // On ajoute le salaire de base aux revenus du mois pour le bilan théorique (optionnel, ici on met juste les flux)
-                // Pour simplifier : Bilan = Salaire + Entrées - Sorties
-                const result = salary + s.income - s.expense;
-                
-                list.innerHTML += `
-                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                        <h3 class="font-bold text-gray-800 capitalize mb-3 border-b pb-2">${monthName}</h3>
-                        <div class="grid grid-cols-3 gap-2 text-center">
-                            <div class="bg-green-50 p-2 rounded-lg">
-                                <div class="text-[10px] text-green-600 font-bold uppercase">Entrées</div>
-                                <div class="text-sm font-bold text-green-700">+${(salary + s.income).toLocaleString()}</div>
-                                <div class="text-[8px] text-green-400">(Incl. Salaire)</div>
-                            </div>
-                            <div class="bg-red-50 p-2 rounded-lg">
-                                <div class="text-[10px] text-red-600 font-bold uppercase">Dépenses</div>
-                                <div class="text-sm font-bold text-red-700">-${s.expense.toLocaleString()}</div>
-                            </div>
-                            <div class="bg-blue-50 p-2 rounded-lg border border-blue-100">
-                                <div class="text-[10px] text-blue-600 font-bold uppercase">Résultat</div>
-                                <div class="text-sm font-bold ${result >= 0 ? 'text-blue-700' : 'text-red-600'}">${result.toLocaleString()}</div>
-                            </div>
-                        </div>
-                    </div>`;
-            });
+            document.getElementById('closing-surplus').innerText = currentSurplus.toLocaleString() + ' F';
+            document.getElementById('closing-modal').classList.remove('hidden');
         }
 
-        // --- PARAMÈTRES ---
-        function openSettings() {
-            document.getElementById('settings-modal').classList.remove('hidden');
-            const cont = document.getElementById('settings-content');
-            cont.innerHTML = `
-                <div class="mb-4">
-                    <label class="text-xs font-bold text-gray-500 uppercase">Salaire Mensuel</label>
-                    <input type="number" id="set-salary" value="${salary}" class="w-full p-2 border rounded font-bold">
-                </div>
-                <div id="cat-list-edit" class="space-y-2"></div>
-            `;
-            const list = document.getElementById('cat-list-edit');
-            categories.forEach((c, idx) => {
-                list.innerHTML += `
-                    <div class="flex gap-2">
-                        <input type="text" value="${c.name}" id="cat-name-${idx}" class="flex-1 p-2 border rounded text-xs font-bold">
-                        <input type="number" value="${c.limit}" id="cat-limit-${idx}" class="w-20 p-2 border rounded text-xs font-bold" placeholder="Budget">
-                        <button onclick="delCat(${idx})" class="text-red-500 px-2"><i class="fas fa-trash"></i></button>
-                    </div>
-                `;
-            });
-        }
+        function processClosing(action) {
+            const monthKey = getMonthKey(displayDate);
+            const lastDay = new Date(displayDate.getFullYear(), displayDate.getMonth() + 1, 0).toISOString().split('T')[0]; // Dernier jour du mois
 
-        function addNewCat() {
-            categories.push({id: 'c'+Date.now(), name: 'Nouveau', limit: 0});
-            saveData();
-            openSettings(); // refresh
-        }
-        function delCat(idx) {
-            if(confirm("Supprimer ?")) {
-                categories.splice(idx, 1);
+            if(action === 'keep') {
+                // Juste fermer
+                closedMonths.push(monthKey);
                 saveData();
-                openSettings();
+                closeModal('closing-modal');
+                initDashboard();
+            } else if (action === 'carryover') {
+                // Ajouter une entrée au mois suivant
+                // Mois suivant
+                let nextMonth = new Date(displayDate);
+                nextMonth.setMonth(nextMonth.getMonth() + 1);
+                // On met la date au 1er du mois suivant
+                const nextMonthDate = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), 1).toISOString().split('T')[0];
+                
+                transactions.push({
+                    id: Date.now(),
+                    date: nextMonthDate, // Date 1er mois suivant
+                    amount: currentSurplus,
+                    type: 'income',
+                    desc: "Report du mois précédent 🗓️"
+                });
+                
+                closedMonths.push(monthKey);
+                saveData();
+                closeModal('closing-modal');
+                // Aller au mois suivant pour voir le report
+                changeMonth(1);
+            } else if (action === 'project') {
+                // Ouvrir liste projets
+                closeModal('closing-modal');
+                const list = document.getElementById('invest-list');
+                list.innerHTML = '';
+                if(projects.length === 0) { alert("Crée d'abord un projet !"); return; }
+                
+                projects.forEach(p => {
+                    list.innerHTML += `<button onclick="investIn(${p.id}, '${lastDay}', '${monthKey}')" class="w-full text-left p-3 border rounded-lg hover:bg-indigo-50 font-bold text-indigo-700">${p.name}</button>`;
+                });
+                document.getElementById('invest-modal').classList.remove('hidden');
             }
         }
-        function saveSettings() {
-            salary = parseInt(document.getElementById('set-salary').value) || 0;
-            categories.forEach((c, idx) => {
-                const n = document.getElementById(`cat-name-${idx}`);
-                const l = document.getElementById(`cat-limit-${idx}`);
-                if(n) c.name = n.value;
-                if(l) c.limit = parseInt(l.value) || 0;
+
+        function investIn(projId, dateStr, monthKey) {
+            // Créer dépense projet pour "sortir" l'argent du budget courant vers le projet
+            const projCat = categories.find(c => c.name.toLowerCase().includes('projet'));
+            const catId = projCat ? projCat.id : categories[0].id;
+
+            transactions.push({
+                id: Date.now(),
+                date: dateStr,
+                amount: currentSurplus,
+                type: 'expense',
+                categoryId: catId,
+                projectId: projId,
+                desc: "Investissement Clôture 💰"
             });
+            
+            closedMonths.push(monthKey);
             saveData();
-            closeModal('settings-modal');
+            closeModal('invest-modal');
             initDashboard();
         }
 
-        // --- UTILITAIRES ---
+        // --- AUTRES MODULES (Projets, Stats, Settings...) ---
+        function renderProjects() {
+            const list = document.getElementById('projects-list'); list.innerHTML = '';
+            if(projects.length === 0) { list.innerHTML = `<div class="text-center py-10 text-gray-400"><i class="fas fa-rocket text-4xl mb-3 text-gray-200"></i><p>Aucun projet.</p></div>`; return; }
+            projects.forEach(p => {
+                const saved = transactions.filter(t => t.projectId == p.id).reduce((sum, t) => sum + t.amount, 0);
+                const percent = Math.min((saved / p.cost) * 100, 100); const remaining = p.cost - saved;
+                let timeMsg = "Terminé ! 🎉";
+                if(remaining > 0) { if(p.monthlyTarget > 0) { const months = Math.ceil(remaining / p.monthlyTarget); timeMsg = `Encore <b>${months} mois</b>`; } else { timeMsg = "Défini un montant mensuel"; } }
+                list.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden"><div class="flex justify-between items-start mb-2"><div><h3 class="font-bold text-gray-800 text-lg">${p.name}</h3><p class="text-xs text-gray-500">Obj: ${p.cost.toLocaleString()} F</p></div><div class="text-right"><span class="block text-xl font-bold text-indigo-600">${saved.toLocaleString()} F</span><span class="text-[10px] text-gray-400">Épargnés</span></div></div><div class="w-full bg-gray-100 rounded-full h-2 mb-2"><div class="bg-indigo-500 h-2 rounded-full transition-all" style="width: ${percent}%"></div></div><div class="flex justify-between items-center bg-indigo-50 p-2 rounded-lg text-xs text-indigo-800"><span><i class="fas fa-hourglass-half mr-1"></i> ${timeMsg}</span><button onclick="deleteProject(${p.id})" class="text-indigo-300 hover:text-red-500"><i class="fas fa-trash"></i></button></div></div>`;
+            });
+        }
+        function openProjectModal() { document.getElementById('project-modal').classList.remove('hidden'); }
+        function createProject() {
+            const name = document.getElementById('proj-name').value; const cost = parseInt(document.getElementById('proj-cost').value); const monthly = parseInt(document.getElementById('proj-monthly').value);
+            if(name && cost) { projects.push({ id: Date.now(), name: name, cost: cost, monthlyTarget: monthly || 0 }); saveData(); renderProjects(); updateProjectSelect(); closeModal('project-modal'); }
+        }
+        function deleteProject(id) { if(confirm("Supprimer ?")) { projects = projects.filter(p => p.id !== id); saveData(); renderProjects(); updateProjectSelect(); } }
+        function updateProjectSelect() { const sel = document.getElementById('project-select'); sel.innerHTML = '<option value="">-- Aucun projet spécifique --</option>'; projects.forEach(p => { sel.innerHTML += `<option value="${p.id}">${p.name}</option>`; }); }
+
+        function renderStats() {
+            const list = document.getElementById('stats-list'); list.innerHTML = '';
+            const stats = {}; transactions.forEach(t => { const date = new Date(t.date); const key = `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2, '0')}`; if(!stats[key]) stats[key] = { income: 0, expense: 0 }; if(t.type === 'expense') stats[key].expense += t.amount; else stats[key].income += t.amount; });
+            const keys = Object.keys(stats).sort().reverse();
+            if(keys.length === 0) { list.innerHTML = '<p class="text-center text-gray-400 mt-10">Pas assez de données.</p>'; return; }
+            keys.forEach(k => {
+                const [year, month] = k.split('-'); const monthName = new Date(year, month - 1).toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
+                const s = stats[k]; const result = salary + s.income - s.expense;
+                list.innerHTML += `<div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100"><h3 class="font-bold text-gray-800 capitalize mb-3 border-b pb-2">${monthName}</h3><div class="grid grid-cols-3 gap-2 text-center"><div class="bg-green-50 p-2 rounded-lg"><div class="text-[10px] text-green-600 font-bold uppercase">Entrées</div><div class="text-sm font-bold text-green-700">+${(salary + s.income).toLocaleString()}</div></div><div class="bg-red-50 p-2 rounded-lg"><div class="text-[10px] text-red-600 font-bold uppercase">Dépenses</div><div class="text-sm font-bold text-red-700">-${s.expense.toLocaleString()}</div></div><div class="bg-blue-50 p-2 rounded-lg border border-blue-100"><div class="text-[10px] text-blue-600 font-bold uppercase">Résultat</div><div class="text-sm font-bold ${result >= 0 ? 'text-blue-700' : 'text-red-600'}">${result.toLocaleString()}</div></div></div></div>`;
+            });
+        }
+
+        // --- SETTINGS ---
+        function openSettings() { document.getElementById('settings-modal').classList.remove('hidden'); const cont = document.getElementById('settings-content'); cont.innerHTML = `<div class="mb-4"><label class="text-xs font-bold text-gray-500 uppercase">Salaire Mensuel</label><input type="number" id="set-salary" value="${salary}" class="w-full p-2 border rounded font-bold"></div><div id="cat-list-edit" class="space-y-2"></div>`; const list = document.getElementById('cat-list-edit'); categories.forEach((c, idx) => { list.innerHTML += `<div class="flex gap-2"><input type="text" value="${c.name}" id="cat-name-${idx}" class="flex-1 p-2 border rounded text-xs font-bold"><input type="number" value="${c.limit}" id="cat-limit-${idx}" class="w-20 p-2 border rounded text-xs font-bold" placeholder="Budget"><button onclick="delCat(${idx})" class="text-red-500 px-2"><i class="fas fa-trash"></i></button></div>`; }); }
+        function addNewCat() { categories.push({id: 'c'+Date.now(), name: 'Nouveau', limit: 0}); saveData(); openSettings(); }
+        function delCat(idx) { if(confirm("Supprimer ?")) { categories.splice(idx, 1); saveData(); openSettings(); } }
+        function saveSettings() { salary = parseInt(document.getElementById('set-salary').value) || 0; categories.forEach((c, idx) => { const n = document.getElementById(`cat-name-${idx}`); const l = document.getElementById(`cat-limit-${idx}`); if(n) c.name = n.value; if(l) c.limit = parseInt(l.value) || 0; }); saveData(); closeModal('settings-modal'); initDashboard(); }
+
+        // --- UTILS ---
         function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
-        function saveData() {
-            localStorage.setItem('salary', salary);
-            localStorage.setItem('categories', JSON.stringify(categories));
-            localStorage.setItem('transactions', JSON.stringify(transactions));
-            localStorage.setItem('projects', JSON.stringify(projects));
-        }
-        
-        // Export/Import/Reset
-        function exportData() {
-            const data = {salary, categories, transactions, projects};
-            const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href = url; a.download = 'budget_backup.json'; a.click();
-        }
+        function saveData() { localStorage.setItem('salary', salary); localStorage.setItem('categories', JSON.stringify(categories)); localStorage.setItem('transactions', JSON.stringify(transactions)); localStorage.setItem('projects', JSON.stringify(projects)); localStorage.setItem('closedMonths', JSON.stringify(closedMonths)); }
+        function exportData() { const data = {salary, categories, transactions, projects, closedMonths}; const blob = new Blob([JSON.stringify(data)], {type: 'application/json'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'budget_backup.json'; a.click(); }
         function importDataClick() { document.getElementById('import-input').click(); }
-        function importDataFile(input) {
-            const file = input.files[0];
-            if(!file) return;
-            const r = new FileReader();
-            r.onload = (e) => {
-                try {
-                    const d = JSON.parse(e.target.result);
-                    if(confirm("Écraser les données actuelles ?")) {
-                        salary = d.salary || 0;
-                        categories = d.categories || [];
-                        transactions = d.transactions || [];
-                        projects = d.projects || [];
-                        saveData();
-                        location.reload();
-                    }
-                } catch(err) { alert("Erreur fichier"); }
-            };
-            r.readAsText(file);
-        }
-        function fullReset() {
-            if(confirm("TOUT EFFACER ?")) { localStorage.clear(); location.reload(); }
-        }
+        function importDataFile(input) { const file = input.files[0]; if(!file) return; const r = new FileReader(); r.onload = (e) => { try { const d = JSON.parse(e.target.result); if(confirm("Écraser les données ?")) { salary = d.salary || 0; categories = d.categories || []; transactions = d.transactions || []; projects = d.projects || []; closedMonths = d.closedMonths || []; saveData(); location.reload(); } } catch(err) { alert("Erreur fichier"); } }; r.readAsText(file); }
+        function fullReset() { if(confirm("TOUT EFFACER ?")) { localStorage.clear(); location.reload(); } }
 
-        // INIT
         initDashboard();
-
     </script>
 </body>
 </html>
