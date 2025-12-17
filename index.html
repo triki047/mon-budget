@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -9,11 +9,30 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
+    <!-- Configuration Tailwind pour le Mode Sombre -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class', // Permet de basculer manuellement
+            theme: {
+                extend: {
+                    colors: {
+                        darkbg: '#0f172a',
+                        darkcard: '#1e293b',
+                        darktext: '#e2e8f0'
+                    }
+                }
+            }
+        }
+    </script>
+    
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Librairie pour l'export Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
         
         /* Animations Générales */
         .modal-enter { opacity: 0; transform: scale(0.95); }
@@ -48,21 +67,92 @@
             30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
             40%, 60% { transform: translate3d(4px, 0, 0); }
         }
+        
+        /* Animation pour le rappel de sauvegarde */
+        .toast-enter { transform: translateY(100%); opacity: 0; }
+        .toast-enter-active { transform: translateY(0); opacity: 1; transition: all 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55); }
+        .toast-exit { transform: translateY(100%); opacity: 0; transition: all 0.5s ease-in; }
 
         button, input, select { min-height: 44px; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
         .nav-active { color: #2563eb; }
+        .dark .nav-active { color: #60a5fa; } /* Bleu plus clair en mode sombre */
         .nav-item { transition: color 0.2s; }
         .tab-content { display: none; }
         .tab-content.active { display: block; animation: fadeIn 0.3s; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Écran de Paiement (Subscription) - Très Bloquant */
+        #sub-overlay { z-index: 100; }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800 h-screen flex flex-col overflow-hidden select-none">
+<body class="bg-gray-50 dark:bg-darkbg text-gray-800 dark:text-darktext h-screen flex flex-col overflow-hidden select-none transition-colors duration-300">
 
-    <!-- ECRAN DE SECURITE (Overlay) -->
+    <!-- ECRAN DE BLOCAGE (Paiement) -->
+    <div id="sub-overlay" class="fixed inset-0 bg-gray-900 flex flex-col items-center justify-center p-6 text-white hidden">
+        <div class="glass-panel w-full max-w-sm rounded-3xl p-8 text-center relative overflow-hidden">
+            <div class="w-20 h-20 bg-yellow-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl animate-bounce">
+                <i class="fas fa-lock text-4xl text-white"></i>
+            </div>
+            <h2 class="text-2xl font-bold mb-2">Licence Expirée</h2>
+            <p class="text-sm text-gray-200 mb-6 leading-relaxed">
+                Votre période d'utilisation est terminée.<br>
+                Une réactivation est nécessaire.
+            </p>
+            
+            <!-- NOUVEAU : Affichage de l'ID Unique -->
+            <div class="bg-black/40 rounded-xl p-4 mb-4 border border-yellow-500/30">
+                <p class="text-xs text-yellow-500 uppercase font-bold mb-1">Votre ID Client (À envoyer)</p>
+                <p id="client-id-display" class="text-3xl font-mono font-bold tracking-widest text-white">----</p>
+            </div>
+
+            <div class="bg-white/10 rounded-xl p-4 mb-6 border border-white/20 text-left">
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-user-tie text-yellow-400 mr-3 text-lg"></i>
+                    <div>
+                        <p class="text-[10px] uppercase text-gray-400 font-bold">Développeur</p>
+                        <p class="font-bold">Emmanuel Kpan</p>
+                    </div>
+                </div>
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-phone-alt text-green-400 mr-3 text-lg"></i>
+                    <div>
+                        <p class="text-[10px] uppercase text-gray-400 font-bold">Contact / Wave</p>
+                        <p class="font-bold text-lg">07 79 00 08 31</p>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <i class="fas fa-tag text-blue-400 mr-3 text-lg"></i>
+                    <div>
+                        <p class="text-[10px] uppercase text-gray-400 font-bold">Tarif</p>
+                        <p class="font-bold">1500 FCFA <span class="text-xs font-normal opacity-70">/ 2 mois</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <input type="number" id="license-key-input" placeholder="Code reçu..." class="w-full bg-black/30 border border-yellow-500/50 rounded-xl p-3 text-center text-lg font-bold text-white tracking-widest focus:outline-none focus:bg-black/50 transition">
+                <button onclick="verifyLicenseKey()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-3 rounded-xl shadow-lg transition transform active:scale-95">
+                    Activer maintenant
+                </button>
+            </div>
+            <p class="mt-4 text-[10px] text-gray-400">Développé par Emmanuel Kpan © 2025</p>
+        </div>
+    </div>
+
+    <!-- TOAST RAPPEL SAUVEGARDE (Nouveau) -->
+    <div id="backup-toast" class="fixed bottom-20 left-4 right-4 bg-gray-900/95 text-white p-4 rounded-2xl shadow-2xl border-l-4 border-blue-500 z-50 flex items-start gap-3 hidden toast-enter">
+        <div class="text-blue-400 text-xl mt-1"><i class="fas fa-save"></i></div>
+        <div class="flex-1">
+            <h4 class="font-bold text-sm">Conseil de Sécurité</h4>
+            <p class="text-xs text-gray-300 mt-1">N'oubliez pas de sauvegarder vos données (Excel ou Sauvegarde) pour ne rien perdre !</p>
+        </div>
+        <button onclick="closeBackupToast()" class="text-gray-500 hover:text-white"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- ECRAN DE SECURITE (Auth) -->
     <div id="auth-overlay" class="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 text-white transition-transform duration-500">
         
         <!-- LOGO -->
@@ -79,7 +169,7 @@
             
             <!-- VUE 1 : LOGIN (PIN) -->
             <div id="auth-login" class="space-y-6">
-                <p class="text-center font-medium">Entrez votre code d'accès</p>
+                <p class="text-center font-medium" id="welcome-back-msg">Bon retour ! Entrez votre code.</p>
                 <input type="tel" id="login-pin" maxlength="4" placeholder="• • • •" class="w-full bg-black/20 border border-white/10 rounded-xl py-4 text-center text-3xl font-bold text-white tracking-[1em] focus:outline-none focus:bg-black/30 placeholder-white/30 transition shadow-inner">
                 <button onclick="attemptLogin()" class="w-full bg-white text-blue-700 font-bold py-3 rounded-xl shadow-lg hover:bg-gray-100 transition transform active:scale-95">Déverrouiller</button>
                 <div class="text-center">
@@ -90,12 +180,18 @@
             <!-- VUE 2 : SETUP (Création) -->
             <div id="auth-setup" class="hidden space-y-4">
                 <h3 class="text-center font-bold text-lg mb-2">Création du Compte</h3>
+                
+                <div>
+                    <label class="text-xs font-bold uppercase text-blue-200 ml-1">Votre Prénom</label>
+                    <input type="text" id="setup-name" placeholder="Ex: Jean" class="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-lg font-bold text-white focus:outline-none focus:border-white/50">
+                </div>
+
                 <div>
                     <label class="text-xs font-bold uppercase text-blue-200 ml-1">Nouveau Code PIN (4 chiffres)</label>
                     <input type="tel" id="setup-pin" maxlength="4" placeholder="0000" class="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-center text-lg font-bold text-white focus:outline-none focus:border-white/50">
                 </div>
                 <div>
-                    <label class="text-xs font-bold uppercase text-blue-200 ml-1">Question Secrète (Récupération)</label>
+                    <label class="text-xs font-bold uppercase text-blue-200 ml-1">Question Secrète</label>
                     <select id="setup-question" class="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-sm text-white focus:outline-none">
                         <option value="animal">Nom de mon premier animal ?</option>
                         <option value="ville">Ville de naissance de ma mère ?</option>
@@ -128,45 +224,55 @@
                     <button onclick="verifyRecovery()" id="recovery-btn" class="flex-1 bg-yellow-500 text-yellow-900 font-bold py-2 rounded-xl text-sm shadow-lg">Vérifier</button>
                 </div>
             </div>
+            
+            <p class="mt-6 text-[10px] text-center text-blue-200 opacity-60">
+                Développé par <span class="font-bold text-white">Emmanuel Kpan</span>
+            </p>
 
         </div>
-        <p class="mt-8 text-xs text-blue-200 opacity-60">Données stockées localement & sécurisées</p>
     </div>
 
 
-    <!-- ==================== APPLICATION PRINCIPALE (Masquée au début) ==================== -->
+    <!-- ==================== APPLICATION PRINCIPALE ==================== -->
     
     <!-- HEADER -->
-    <header class="bg-white shadow-sm z-20 px-2 py-3 shrink-0">
+    <header class="bg-white dark:bg-darkcard shadow-sm z-20 px-2 py-3 shrink-0 transition-colors duration-300">
         <div class="flex justify-between items-center mb-2 px-2">
             <div>
-                <h1 class="font-bold text-gray-800 flex items-center text-sm"><i class="fas fa-wallet text-blue-600 mr-2"></i> Mon Budget</h1>
-                <p class="text-[10px] text-gray-500">Base: <span id="salary-display" class="font-bold text-gray-700">0 F</span></p>
+                <!-- NOUVEAU : Message de Bienvenue avec le Nom -->
+                <h1 class="font-bold text-gray-800 dark:text-white flex items-center text-sm">
+                    <span id="welcome-msg">Bonjour</span>
+                </h1>
+                <p class="text-[10px] text-gray-500 dark:text-gray-400">Base: <span id="salary-display" class="font-bold text-gray-700 dark:text-gray-300">0 F</span></p>
             </div>
-            <div class="flex gap-2">
-                <button onclick="showNotifications()" id="notif-btn" class="relative p-2 text-gray-400 hover:text-blue-600">
+            <div class="flex gap-2 items-center">
+                <!-- NOUVEAU : Bouton Dark Mode -->
+                <button onclick="toggleTheme()" class="p-2 text-gray-400 hover:text-yellow-500 dark:hover:text-yellow-300 transition" title="Mode Sombre/Clair">
+                    <i id="theme-icon" class="fas fa-moon text-xl"></i>
+                </button>
+
+                <button onclick="showNotifications()" id="notif-btn" class="relative p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400">
                     <i class="fas fa-bell text-xl"></i>
                     <span id="notif-badge" class="hidden absolute top-1 right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></span>
                 </button>
-                <!-- Bouton Verrouiller -->
-                <button onclick="lockApp()" class="p-2 text-gray-400 hover:text-red-600" title="Verrouiller">
+                <button onclick="lockApp()" class="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400" title="Verrouiller">
                     <i class="fas fa-lock text-xl"></i>
                 </button>
-                <div class="bg-green-50 px-3 py-1 rounded-lg border border-green-100 text-right">
-                    <p class="text-[10px] text-green-600 uppercase font-bold">Reste à vivre</p>
-                    <p id="header-balance" class="text-lg font-bold text-green-700 leading-none">0 F</p>
+                <div class="bg-green-50 dark:bg-green-900/20 px-3 py-1 rounded-lg border border-green-100 dark:border-green-800 text-right">
+                    <p class="text-[10px] text-green-600 dark:text-green-400 uppercase font-bold">Reste à vivre</p>
+                    <p id="header-balance" class="text-lg font-bold text-green-700 dark:text-green-300 leading-none">0 F</p>
                 </div>
             </div>
         </div>
         
         <!-- SÉLECTEUR DE PÉRIODE -->
-        <div class="flex items-center justify-between bg-gray-100 rounded-xl p-1 mx-1">
-            <button onclick="changePeriodView(-1)" class="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-blue-600 active:scale-90 transition"><i class="fas fa-chevron-left"></i></button>
+        <div class="flex items-center justify-between bg-gray-100 dark:bg-gray-800 rounded-xl p-1 mx-1 transition-colors duration-300">
+            <button onclick="changePeriodView(-1)" class="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 active:scale-90 transition"><i class="fas fa-chevron-left"></i></button>
             <div class="text-center">
-                <span id="period-display" class="font-bold text-gray-800 text-sm capitalize block leading-tight">Période Actuelle</span>
-                <span id="period-dates" class="text-[10px] uppercase font-bold text-blue-500">Depuis le 10 Déc</span>
+                <span id="period-display" class="font-bold text-gray-800 dark:text-white text-sm capitalize block leading-tight">Période Actuelle</span>
+                <span id="period-dates" class="text-[10px] uppercase font-bold text-blue-500 dark:text-blue-400">Depuis le...</span>
             </div>
-            <button onclick="changePeriodView(1)" class="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-blue-600 active:scale-90 transition"><i class="fas fa-chevron-right"></i></button>
+            <button onclick="changePeriodView(1)" class="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 active:scale-90 transition"><i class="fas fa-chevron-right"></i></button>
         </div>
     </header>
 
@@ -174,45 +280,45 @@
     <main class="flex-1 overflow-y-auto pb-24 p-4 hide-scrollbar relative" id="main-container">
         <!-- VUE JOURNAL -->
         <div id="view-journal" class="tab-content active space-y-6">
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+            <div class="bg-white dark:bg-darkcard rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 transition-colors duration-300">
                 <div class="flex justify-between items-center mb-3">
-                    <h2 class="font-bold text-gray-700 text-sm uppercase">État de la période</h2>
-                    <button onclick="openSettings()" class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-md"><i class="fas fa-sliders-h"></i> Ajuster</button>
+                    <h2 class="font-bold text-gray-700 dark:text-gray-200 text-sm uppercase">État de la période</h2>
+                    <button onclick="openSettings()" class="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded-md"><i class="fas fa-sliders-h"></i> Ajuster</button>
                 </div>
                 <div class="space-y-3" id="budget-bars"></div>
-                <div id="closing-section" class="mt-4 pt-3 border-t border-gray-100 text-center">
-                    <button onclick="startClosingProcess()" class="w-full py-3 bg-gray-900 text-white rounded-xl font-bold text-sm shadow-md hover:bg-black transition flex items-center justify-center"><i class="fas fa-flag-checkered mr-2 text-yellow-400"></i> Clôturer la Période (Salaire reçu)</button>
+                <div id="closing-section" class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 text-center">
+                    <button onclick="startClosingProcess()" class="w-full py-3 bg-gray-900 dark:bg-blue-600 text-white rounded-xl font-bold text-sm shadow-md hover:bg-black dark:hover:bg-blue-700 transition flex items-center justify-center"><i class="fas fa-flag-checkered mr-2 text-yellow-400"></i> Clôturer la Période (Salaire reçu)</button>
                     <p class="text-[10px] text-gray-400 mt-2">Clique ici quand tu reçois ton nouveau salaire pour faire le bilan.</p>
                 </div>
-                <div id="archived-msg" class="hidden mt-4 pt-3 border-t border-gray-100 text-center"><span class="inline-block bg-gray-100 text-gray-500 px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-history mr-1"></i> Période Archivée</span></div>
+                <div id="archived-msg" class="hidden mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 text-center"><span class="inline-block bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-history mr-1"></i> Période Archivée</span></div>
             </div>
 
             <!-- Ajout -->
-            <div id="add-transaction-card" class="bg-white rounded-2xl shadow-lg border border-blue-100 p-5 relative overflow-hidden">
+            <div id="add-transaction-card" class="bg-white dark:bg-darkcard rounded-2xl shadow-lg border border-blue-100 dark:border-gray-700 p-5 relative overflow-hidden transition-colors duration-300">
                 <div class="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
-                <h2 class="font-bold text-gray-800 mb-4 flex items-center"><i class="fas fa-plus-circle text-blue-500 mr-2"></i>Nouvelle Opération</h2>
+                <h2 class="font-bold text-gray-800 dark:text-white mb-4 flex items-center"><i class="fas fa-plus-circle text-blue-500 mr-2"></i>Nouvelle Opération</h2>
                 <form id="transaction-form" class="space-y-4">
-                    <div class="flex bg-gray-100 rounded-lg p-1">
-                        <button type="button" id="btn-expense" onclick="setType('expense')" class="flex-1 py-2 rounded-md text-sm font-bold shadow-sm bg-white text-red-600 transition">Sortie (-)</button>
-                        <button type="button" id="btn-income" onclick="setType('income')" class="flex-1 py-2 rounded-md text-sm font-bold text-gray-500 hover:text-green-600 transition">Entrée (+)</button>
+                    <div class="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+                        <button type="button" id="btn-expense" onclick="setType('expense')" class="flex-1 py-2 rounded-md text-sm font-bold shadow-sm bg-white dark:bg-gray-700 text-red-600 transition">Sortie (-)</button>
+                        <button type="button" id="btn-income" onclick="setType('income')" class="flex-1 py-2 rounded-md text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-green-600 transition">Entrée (+)</button>
                     </div>
                     <input type="hidden" id="trans-type" value="expense">
                     <div class="flex gap-3">
-                        <div class="flex-1"><label class="text-[10px] uppercase font-bold text-gray-400">Montant</label><input type="number" id="amount" placeholder="0" class="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 font-bold text-gray-800 outline-none focus:ring-2 focus:ring-blue-500" required></div>
-                        <div class="w-1/3"><label class="text-[10px] uppercase font-bold text-gray-400">Jour</label><input type="date" id="date" class="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 text-sm font-medium outline-none"></div>
+                        <div class="flex-1"><label class="text-[10px] uppercase font-bold text-gray-400">Montant</label><input type="number" id="amount" placeholder="0" class="w-full p-3 bg-gray-50 dark:bg-gray-800 dark:text-white dark:border-gray-700 rounded-xl border border-gray-200 font-bold text-gray-800 outline-none focus:ring-2 focus:ring-blue-500" required></div>
+                        <div class="w-1/3"><label class="text-[10px] uppercase font-bold text-gray-400">Jour</label><input type="date" id="date" class="w-full p-3 bg-gray-50 dark:bg-gray-800 dark:text-white dark:border-gray-700 rounded-xl border border-gray-200 text-sm font-medium outline-none"></div>
                     </div>
                     <div id="category-section">
                         <label class="text-[10px] uppercase font-bold text-gray-400 mb-1 block">Poste de dépense</label>
                         <div class="relative">
-                            <select id="category-select" onchange="onCategoryChange(this)" class="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 font-bold text-gray-700 outline-none text-sm appearance-none"></select>
+                            <select id="category-select" onchange="onCategoryChange(this)" class="w-full p-3 bg-gray-50 dark:bg-gray-800 dark:text-white dark:border-gray-700 rounded-xl border border-gray-200 font-bold text-gray-700 outline-none text-sm appearance-none"></select>
                             <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-500"><i class="fas fa-chevron-down text-xs"></i></div>
                         </div>
                     </div>
-                    <div id="project-link-section" class="hidden bg-indigo-50 p-3 rounded-xl border border-indigo-100">
+                    <div id="project-link-section" class="hidden bg-indigo-50 dark:bg-indigo-900/30 p-3 rounded-xl border border-indigo-100 dark:border-indigo-800">
                         <label class="text-[10px] uppercase font-bold text-indigo-500 mb-1 block"><i class="fas fa-link mr-1"></i>Lier à un projet ?</label>
-                        <select id="project-select" class="w-full bg-white border border-indigo-200 rounded-lg p-2 text-sm text-indigo-900 outline-none"><option value="">-- Aucun --</option></select>
+                        <select id="project-select" class="w-full bg-white dark:bg-gray-800 dark:text-white dark:border-gray-700 border border-indigo-200 rounded-lg p-2 text-sm text-indigo-900 outline-none"><option value="">-- Aucun --</option></select>
                     </div>
-                    <div id="desc-section" class="hidden"><label class="text-[10px] uppercase font-bold text-gray-400">Description</label><input type="text" id="description" placeholder="Ex: Prime..." class="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 font-medium text-sm outline-none"></div>
+                    <div id="desc-section" class="hidden"><label class="text-[10px] uppercase font-bold text-gray-400">Description</label><input type="text" id="description" placeholder="Ex: Prime..." class="w-full p-3 bg-gray-50 dark:bg-gray-800 dark:text-white dark:border-gray-700 rounded-xl border border-gray-200 font-medium text-sm outline-none"></div>
                     <button type="submit" id="submit-btn" class="w-full py-3 bg-red-600 text-white rounded-xl font-bold shadow-md hover:bg-red-700 active:scale-95 transition">Enregistrer</button>
                 </form>
             </div>
@@ -221,76 +327,164 @@
 
         <!-- VUE PROJETS -->
         <div id="view-projects" class="tab-content space-y-6">
-            <div class="flex justify-between items-end"><div><h2 class="text-2xl font-bold text-gray-800">Mes Projets</h2><p class="text-xs text-gray-500">Réalise tes rêves étape par étape.</p></div><button onclick="openProjectModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md active:scale-95 transition"><i class="fas fa-plus mr-1"></i> Nouveau</button></div>
+            <div class="flex justify-between items-end"><div><h2 class="text-2xl font-bold text-gray-800 dark:text-white">Mes Projets</h2><p class="text-xs text-gray-500 dark:text-gray-400">Réalise tes rêves étape par étape.</p></div><button onclick="openProjectModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md active:scale-95 transition"><i class="fas fa-plus mr-1"></i> Nouveau</button></div>
             <div id="projects-list" class="space-y-4"></div>
         </div>
 
         <!-- VUE ARCHIVES -->
         <div id="view-stats" class="tab-content space-y-6">
-            <h2 class="text-2xl font-bold text-gray-800">Historique des Périodes</h2>
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Historique des Périodes</h2>
             <div id="stats-list" class="space-y-4"></div>
-            <div class="mt-8 bg-blue-50 border border-blue-100 rounded-2xl p-5"><h3 class="font-bold text-blue-800 mb-2"><i class="fas fa-shield-alt mr-2"></i>Sécurité</h3><div class="flex gap-3"><button onclick="exportData()" class="flex-1 py-3 bg-white border border-blue-200 text-blue-700 font-bold rounded-xl shadow-sm text-sm"><i class="fas fa-download mr-2"></i>Sauver</button><button onclick="importDataClick()" class="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-md text-sm"><i class="fas fa-upload mr-2"></i>Restaurer</button><input type="file" id="import-input" class="hidden" onchange="importDataFile(this)"></div></div>
+            
+            <!-- Export Excel -->
+            <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-2xl p-5 mb-4">
+                <h3 class="font-bold text-green-800 dark:text-green-300 mb-2"><i class="fas fa-file-excel mr-2"></i>Export Excel</h3>
+                <p class="text-xs text-green-600 dark:text-green-400 mb-3">Télécharge tout ton historique (Journal, Projets + Bilan Graphiques) dans un fichier Excel pour ton PC.</p>
+                <button onclick="exportToExcel()" class="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-md text-sm transition">
+                    <i class="fas fa-download mr-2"></i> Télécharger le Fichier Excel (.xlsx)
+                </button>
+            </div>
+
+            <div class="mt-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-2xl p-5"><h3 class="font-bold text-blue-800 dark:text-blue-300 mb-2"><i class="fas fa-shield-alt mr-2"></i>Sécurité</h3><div class="flex gap-3"><button onclick="exportData()" class="flex-1 py-3 bg-white dark:bg-gray-800 dark:text-blue-300 dark:border-gray-700 border border-blue-200 text-blue-700 font-bold rounded-xl shadow-sm text-sm"><i class="fas fa-download mr-2"></i>Sauver</button><button onclick="importDataClick()" class="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-md text-sm"><i class="fas fa-upload mr-2"></i>Restaurer</button><input type="file" id="import-input" class="hidden" onchange="importDataFile(this)"></div></div>
+            
+            <!-- CREDIT FOOTER -->
+            <div class="mt-8 text-center border-t border-gray-200 dark:border-gray-800 pt-4">
+                 <p class="text-[10px] text-gray-400">Application développée par <span class="font-bold text-gray-600 dark:text-gray-400">Emmanuel Kpan</span></p>
+            </div>
         </div>
     </main>
 
     <!-- NAV BOTTOM -->
-    <nav class="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex justify-around py-3 z-40 pb-safe">
+    <nav class="fixed bottom-0 left-0 w-full bg-white dark:bg-darkcard border-t border-gray-200 dark:border-gray-700 flex justify-around py-3 z-40 pb-safe transition-colors duration-300">
         <button onclick="switchTab('journal')" class="nav-item nav-active flex flex-col items-center w-1/3" id="nav-journal"><i class="fas fa-calendar-day text-xl mb-1"></i><span class="text-[10px] font-bold">Journal</span></button>
-        <button onclick="switchTab('projects')" class="nav-item text-gray-400 flex flex-col items-center w-1/3" id="nav-projects"><i class="fas fa-rocket text-xl mb-1"></i><span class="text-[10px] font-bold">Projets</span></button>
-        <button onclick="switchTab('stats')" class="nav-item text-gray-400 flex flex-col items-center w-1/3" id="nav-stats"><i class="fas fa-history text-xl mb-1"></i><span class="text-[10px] font-bold">Archives</span></button>
+        <button onclick="switchTab('projects')" class="nav-item text-gray-400 dark:text-gray-500 flex flex-col items-center w-1/3" id="nav-projects"><i class="fas fa-rocket text-xl mb-1"></i><span class="text-[10px] font-bold">Projets</span></button>
+        <button onclick="switchTab('stats')" class="nav-item text-gray-400 dark:text-gray-500 flex flex-col items-center w-1/3" id="nav-stats"><i class="fas fa-history text-xl mb-1"></i><span class="text-[10px] font-bold">Archives</span></button>
     </nav>
 
-    <!-- MODALS (Hidden by default) -->
+    <!-- MODALS -->
+    <!-- Closing Modal -->
     <div id="closing-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
-            <div class="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4 text-yellow-600 text-3xl"><i class="fas fa-trophy"></i></div>
-            <h3 class="font-bold text-2xl text-gray-800 mb-1">Bilan de Période</h3>
-            <p class="text-sm text-gray-500 mb-6">Tu clôtures cette période. Résultat :</p>
-            <div class="text-4xl font-bold text-green-600 mb-2" id="closing-surplus">0 F</div>
+        <div class="bg-white dark:bg-darkcard rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+            <div class="w-16 h-16 bg-yellow-100 dark:bg-yellow-900 rounded-full flex items-center justify-center mx-auto mb-4 text-yellow-600 dark:text-yellow-400 text-3xl"><i class="fas fa-trophy"></i></div>
+            <h3 class="font-bold text-2xl text-gray-800 dark:text-white mb-1">Bilan de Période</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Tu clôtures cette période. Résultat :</p>
+            <div class="text-4xl font-bold text-green-600 dark:text-green-400 mb-2" id="closing-surplus">0 F</div>
             <p class="text-xs text-gray-400 mb-6">C'est ton SURPLUS (Reste à vivre).</p>
             <div class="space-y-3">
                 <button onclick="processClosing('project')" class="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold shadow-lg active:scale-95 transition"><i class="fas fa-rocket mr-2"></i> Investir dans un Projet</button>
                 <button onclick="processClosing('carryover')" class="w-full py-4 bg-green-600 text-white rounded-xl font-bold shadow-lg active:scale-95 transition"><i class="fas fa-calendar-plus mr-2"></i> Reporter sur la prochaine période</button>
-                <button onclick="processClosing('keep')" class="w-full py-3 bg-gray-100 text-gray-600 rounded-xl font-bold active:scale-95 transition">Juste fermer (Pas de report)</button>
+                <button onclick="processClosing('keep')" class="w-full py-3 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl font-bold active:scale-95 transition">Juste fermer (Pas de report)</button>
             </div>
         </div>
     </div>
-    <div id="notif-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-lg text-gray-800"><i class="fas fa-bell text-red-500 mr-2"></i> Rappels du jour</h3><button onclick="closeModal('notif-modal')" class="text-gray-400"><i class="fas fa-times"></i></button></div><div id="notif-list" class="space-y-3 mb-4"></div><p class="text-[10px] text-gray-400 text-center italic">Ces rappels s'affichent quand le jour J arrive.</p></div></div>
-    <div id="invest-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"><h3 class="font-bold text-lg text-gray-800 mb-4">Quel projet financer ?</h3><div id="invest-list" class="space-y-2 max-h-60 overflow-y-auto mb-4"></div><button onclick="closeModal('invest-modal')" class="w-full py-3 bg-gray-100 text-gray-600 rounded-xl font-bold">Annuler</button></div></div>
-    <div id="settings-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]"><div class="p-4 border-b border-gray-100 flex justify-between items-center"><h3 class="font-bold text-lg text-gray-800">Paramètres</h3><button onclick="closeModal('settings-modal')" class="text-gray-400"><i class="fas fa-times text-xl"></i></button></div><div class="p-4 overflow-y-auto flex-1 hide-scrollbar" id="settings-content"></div><div class="p-4 border-t bg-gray-50 rounded-b-2xl flex gap-3"><button onclick="addNewCat()" class="flex-1 py-3 border border-blue-200 text-blue-600 rounded-xl font-bold text-sm">Nouveau Poste</button><button onclick="saveSettings()" class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg text-sm">Sauvegarder</button></div><div class="p-2 text-center"><button onclick="fullReset()" class="text-xs text-red-400 underline p-2">Effacer toutes les données (Reset)</button></div></div></div>
-    <div id="project-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"><h3 class="font-bold text-xl text-indigo-800 mb-4">Nouveau Projet</h3><div class="space-y-4"><div><label class="text-xs uppercase font-bold text-gray-400">Nom</label><input type="text" id="proj-name" placeholder="Ex: Ordi..." class="w-full p-3 bg-indigo-50 rounded-xl border border-indigo-100 font-bold outline-none"></div><div><label class="text-xs uppercase font-bold text-gray-400">Coût Total</label><input type="number" id="proj-cost" placeholder="0" class="w-full p-3 bg-indigo-50 rounded-xl border border-indigo-100 font-bold outline-none"></div><div class="flex gap-2"><div class="flex-1"><label class="text-xs uppercase font-bold text-gray-400">Épargne / mois</label><input type="number" id="proj-monthly" placeholder="0" class="w-full p-3 bg-indigo-50 rounded-xl border border-indigo-100 font-bold outline-none"></div><div class="w-24"><label class="text-xs uppercase font-bold text-red-400"><i class="fas fa-bell"></i> Rappel</label><select id="proj-reminder" class="w-full p-3 bg-red-50 rounded-xl border border-red-100 font-bold outline-none text-sm"><option value="">Non</option></select></div></div><p class="text-[10px] text-gray-400">Choisis un jour pour recevoir une alerte dans l'appli.</p></div><div class="mt-6 flex gap-3"><button onclick="closeModal('project-modal')" class="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold">Annuler</button><button onclick="createProject()" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg">Créer</button></div></div></div>
+    <!-- Notifications Modal -->
+    <div id="notif-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm"><div class="bg-white dark:bg-darkcard rounded-2xl shadow-2xl w-full max-w-sm p-6"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-lg text-gray-800 dark:text-white"><i class="fas fa-bell text-red-500 mr-2"></i> Rappels du jour</h3><button onclick="closeModal('notif-modal')" class="text-gray-400"><i class="fas fa-times"></i></button></div><div id="notif-list" class="space-y-3 mb-4"></div><p class="text-[10px] text-gray-400 text-center italic">Ces rappels s'affichent quand le jour J arrive.</p></div></div>
+    <!-- Invest Modal -->
+    <div id="invest-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm"><div class="bg-white dark:bg-darkcard rounded-2xl shadow-2xl w-full max-w-sm p-6"><h3 class="font-bold text-lg text-gray-800 dark:text-white mb-4">Quel projet financer ?</h3><div id="invest-list" class="space-y-2 max-h-60 overflow-y-auto mb-4"></div><button onclick="closeModal('invest-modal')" class="w-full py-3 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl font-bold">Annuler</button></div></div>
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm"><div class="bg-white dark:bg-darkcard rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]"><div class="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center"><h3 class="font-bold text-lg text-gray-800 dark:text-white">Paramètres</h3><button onclick="closeModal('settings-modal')" class="text-gray-400"><i class="fas fa-times text-xl"></i></button></div><div class="p-4 overflow-y-auto flex-1 hide-scrollbar" id="settings-content"></div><div class="p-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 rounded-b-2xl flex gap-3"><button onclick="addNewCat()" class="flex-1 py-3 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 rounded-xl font-bold text-sm">Nouveau Poste</button><button onclick="saveSettings()" class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg text-sm">Sauvegarder</button></div><div class="p-2 text-center"><button onclick="fullReset()" class="text-xs text-red-400 underline p-2">Effacer toutes les données (Reset)</button></div></div></div>
+    <!-- Project Modal -->
+    <div id="project-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm"><div class="bg-white dark:bg-darkcard rounded-2xl shadow-2xl w-full max-w-sm p-6"><h3 class="font-bold text-xl text-indigo-800 dark:text-indigo-400 mb-4">Nouveau Projet</h3><div class="space-y-4"><div><label class="text-xs uppercase font-bold text-gray-400">Nom</label><input type="text" id="proj-name" placeholder="Ex: Ordi..." class="w-full p-3 bg-indigo-50 dark:bg-gray-800 dark:text-white dark:border-gray-700 rounded-xl border border-indigo-100 dark:border-gray-600 font-bold outline-none"></div><div><label class="text-xs uppercase font-bold text-gray-400">Coût Total</label><input type="number" id="proj-cost" placeholder="0" class="w-full p-3 bg-indigo-50 dark:bg-gray-800 dark:text-white dark:border-gray-700 rounded-xl border border-indigo-100 dark:border-gray-600 font-bold outline-none"></div><div class="flex gap-2"><div class="flex-1"><label class="text-xs uppercase font-bold text-gray-400">Épargne / mois</label><input type="number" id="proj-monthly" placeholder="0" class="w-full p-3 bg-indigo-50 dark:bg-gray-800 dark:text-white dark:border-gray-700 rounded-xl border border-indigo-100 dark:border-gray-600 font-bold outline-none"></div><div class="w-24"><label class="text-xs uppercase font-bold text-red-400"><i class="fas fa-bell"></i> Rappel</label><select id="proj-reminder" class="w-full p-3 bg-red-50 dark:bg-red-900/20 dark:text-red-300 rounded-xl border border-red-100 dark:border-red-800 font-bold outline-none text-sm"><option value="">Non</option></select></div></div><p class="text-[10px] text-gray-400">Choisis un jour pour recevoir une alerte dans l'appli.</p></div><div class="mt-6 flex gap-3"><button onclick="closeModal('project-modal')" class="flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl font-bold">Annuler</button><button onclick="createProject()" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg">Créer</button></div></div></div>
 
     <script>
+        // --- 1. SYSTEME DE LICENCE (Emmanuel Kpan) ---
+        // Version Algorithmique Dynamique
+        
+        // Durée de la licence : 60 jours (en millisecondes)
+        const LICENSE_DURATION = 60 * 24 * 60 * 60 * 1000;
+        
+        // Formule Secrète : Code = ID + 2250
+        const SECRET_ADDITION = 2250;
+
+        // Initialisation ou Récupération de l'état
+        let licenseState = JSON.parse(localStorage.getItem('licenseState')) || {
+            expiryDate: Date.now() + LICENSE_DURATION, // Commence aujourd'hui + 60 jours (Essai gratuit)
+            currentRequestId: null // ID généré aléatoirement lors du blocage
+        };
+        
+        // Vérification au démarrage
+        function checkLicense() {
+            const now = Date.now();
+            if (now > licenseState.expiryDate) {
+                // EXPIRED : On doit bloquer
+                document.getElementById('sub-overlay').classList.remove('hidden');
+                document.getElementById('auth-overlay').classList.add('hidden'); // Cache le login si expiré
+                
+                // Générer un nouvel ID si pas déjà fait pour cette session de blocage
+                if (!licenseState.currentRequestId) {
+                    licenseState.currentRequestId = Math.floor(1000 + Math.random() * 9000); // Nombre entre 1000 et 9999
+                    localStorage.setItem('licenseState', JSON.stringify(licenseState));
+                }
+                
+                // Afficher l'ID
+                document.getElementById('client-id-display').innerText = licenseState.currentRequestId;
+                
+            } else {
+                // VALID - On continue vers l'auth normale
+                checkAuth();
+            }
+        }
+
+        // Action du bouton "Activer"
+        function verifyLicenseKey() {
+            const input = document.getElementById('license-key-input');
+            const userCode = parseInt(input.value.trim());
+            const currentId = parseInt(licenseState.currentRequestId);
+            
+            // Calcul de la bonne réponse attendue
+            const expectedCode = currentId + SECRET_ADDITION;
+
+            // Vérification
+            if (userCode === expectedCode) {
+                // Succès !
+                alert("Licence activée avec succès pour 2 mois ! Merci de votre confiance.");
+                
+                // Mise à jour état
+                licenseState.expiryDate = Date.now() + LICENSE_DURATION;
+                licenseState.currentRequestId = null; // Reset pour générer un nouvel ID dans 2 mois
+                localStorage.setItem('licenseState', JSON.stringify(licenseState));
+                
+                // Débloquer
+                document.getElementById('sub-overlay').classList.add('hidden');
+                location.reload(); // Recharger pour aller au login
+            } else {
+                // Echec
+                alert("Code incorrect. Vérifiez le calcul avec le développeur.");
+                input.value = "";
+            }
+        }
+
         // --- AUTHENTIFICATION & SÉCURITÉ ---
         const authOverlay = document.getElementById('auth-overlay');
         let securityConfig = JSON.parse(localStorage.getItem('securityConfig'));
 
         function checkAuth() {
-            // Si pas de config, montrer le setup
             if (!securityConfig) {
                 document.getElementById('auth-login').classList.add('hidden');
                 document.getElementById('auth-setup').classList.remove('hidden');
             } else {
-                // Si config, montrer login
                 document.getElementById('auth-setup').classList.add('hidden');
                 document.getElementById('auth-login').classList.remove('hidden');
-                // Auto focus sur PIN
+                if(securityConfig.name) {
+                    document.getElementById('welcome-back-msg').innerText = `Bon retour ${securityConfig.name} !`;
+                }
                 setTimeout(() => document.getElementById('login-pin').focus(), 500);
             }
         }
 
         function saveSecurityConfig() {
+            const name = document.getElementById('setup-name').value;
             const pin = document.getElementById('setup-pin').value;
             const question = document.getElementById('setup-question').value;
             const answer = document.getElementById('setup-answer').value;
 
+            if (!name) { alert("Le Prénom est obligatoire !"); return; }
             if (pin.length !== 4) { alert("Le code PIN doit faire 4 chiffres"); return; }
-            if (!answer) { alert("La réponse secrète est obligatoire pour récupérer le compte !"); return; }
+            if (!answer) { alert("La réponse secrète est obligatoire !"); return; }
 
-            securityConfig = { pin: pin, question: question, answer: answer.toLowerCase().trim() };
+            securityConfig = { name: name, pin: pin, question: question, answer: answer.toLowerCase().trim() };
             localStorage.setItem('securityConfig', JSON.stringify(securityConfig));
             
-            // Succès
             unlockApp();
         }
 
@@ -300,7 +494,6 @@
                 unlockApp();
                 input.value = "";
             } else {
-                // Shake effect
                 const box = document.getElementById('auth-box');
                 box.classList.add('shake-anim');
                 input.value = "";
@@ -310,8 +503,10 @@
 
         function unlockApp() {
             authOverlay.style.transform = "translateY(-100%)";
-            // Lancer l'app si pas déjà fait
-            // initDashboard is called at end of script, so it's ready.
+            if(securityConfig && securityConfig.name) {
+                document.getElementById('welcome-msg').innerText = `Bonjour, ${securityConfig.name}`;
+            }
+            initDashboard();
         }
 
         function lockApp() {
@@ -322,69 +517,113 @@
             document.getElementById('login-pin').value = "";
         }
 
-        // --- RECUPERATION ---
         function showRecovery() {
             document.getElementById('auth-login').classList.add('hidden');
             document.getElementById('auth-recovery').classList.remove('hidden');
-            
-            // Afficher la bonne question
-            const qSelect = document.getElementById('setup-question');
-            // Trouver le texte correspondant à la valeur sauvegardée
-            let qText = "Question secrète ?";
-            // Mapping manuel car le select est dans une autre vue
-            const map = {
-                'animal': "Nom de mon premier animal ?",
-                'ville': "Ville de naissance de ma mère ?",
-                'ecole': "Nom de mon école primaire ?",
-                'surnom': "Mon surnom d'enfance ?"
-            };
-            if(securityConfig && securityConfig.question) qText = map[securityConfig.question];
+            const map = {'animal': "Animal ?", 'ville': "Ville mère ?", 'ecole': "École primaire ?", 'surnom': "Surnom ?"};
+            let qText = map[securityConfig?.question] || "Question secrète ?";
             document.getElementById('recovery-question-display').innerText = qText;
         }
-
-        function showLogin() {
-            document.getElementById('auth-recovery').classList.add('hidden');
-            document.getElementById('auth-login').classList.remove('hidden');
-        }
-
+        function showLogin() { document.getElementById('auth-recovery').classList.add('hidden'); document.getElementById('auth-login').classList.remove('hidden'); }
         function verifyRecovery() {
             const ans = document.getElementById('recovery-answer').value.toLowerCase().trim();
-            const btn = document.getElementById('recovery-btn');
-            
             if (ans === securityConfig.answer) {
-                // Succès : Montrer champ nouveau PIN
                 document.getElementById('recovery-new-pin-area').classList.remove('hidden');
-                btn.innerText = "Changer le PIN";
-                btn.onclick = changePinFromRecovery;
-                btn.classList.replace('bg-yellow-500', 'bg-green-500');
-                btn.classList.replace('text-yellow-900', 'text-white');
-            } else {
-                alert("Mauvaise réponse !");
-            }
+                document.getElementById('recovery-btn').innerText = "Changer le PIN";
+                document.getElementById('recovery-btn').onclick = changePinFromRecovery;
+            } else { alert("Mauvaise réponse !"); }
         }
-
         function changePinFromRecovery() {
             const newPin = document.getElementById('recovery-new-pin').value;
-            if (newPin.length !== 4) { alert("Le PIN doit faire 4 chiffres"); return; }
-            
+            if (newPin.length !== 4) return alert("4 chiffres !");
             securityConfig.pin = newPin;
             localStorage.setItem('securityConfig', JSON.stringify(securityConfig));
-            alert("Code PIN modifié avec succès !");
-            
-            // Reset UI
-            document.getElementById('recovery-answer').value = "";
-            document.getElementById('recovery-new-pin').value = "";
-            document.getElementById('recovery-new-pin-area').classList.add('hidden');
-            const btn = document.getElementById('recovery-btn');
-            btn.innerText = "Vérifier";
-            btn.onclick = verifyRecovery;
-            btn.classList.replace('bg-green-500', 'bg-yellow-500');
-            btn.classList.replace('text-white', 'text-yellow-900');
-            
-            showLogin();
+            alert("OK ! Connectez-vous.");
+            location.reload();
         }
 
-        // --- APP LOGIC (Reste identique V7.1) ---
+        function toggleTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+            
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                icon.className = 'fas fa-moon text-xl'; 
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                icon.className = 'fas fa-sun text-xl'; 
+            }
+        }
+        
+        if (localStorage.getItem('theme') === 'dark') {
+            document.documentElement.classList.add('dark');
+            document.getElementById('theme-icon').className = 'fas fa-sun text-xl';
+        }
+
+        function exportToExcel() {
+            if(!confirm("Générer le fichier Excel de toutes tes données ?")) return;
+
+            const journalData = transactions.map(t => {
+                const cat = categories.find(c => c.id === t.categoryId);
+                const proj = projects.find(p => p.id === t.projectId);
+                return {
+                    "Date": t.date,
+                    "Type": t.type === 'expense' ? 'Dépense' : 'Revenu',
+                    "Catégorie": cat ? cat.name : (t.type === 'income' ? 'Revenu' : '-'),
+                    "Montant": t.amount,
+                    "Description": t.desc || '',
+                    "Projet Lié": proj ? proj.name : '-'
+                };
+            });
+
+            const projectsData = projects.map(p => {
+                const saved = transactions.filter(t => t.projectId == p.id).reduce((sum, t) => sum + t.amount, 0);
+                return {
+                    "Nom du Projet": p.name,
+                    "Coût Total": p.cost,
+                    "Épargné": saved,
+                    "Reste à faire": p.cost - saved,
+                    "Mensualité Cible": p.monthlyTarget
+                };
+            });
+            
+            const categoryStats = {};
+            let totalExpenses = 0;
+            categories.forEach(c => categoryStats[c.name] = 0);
+            transactions.forEach(t => {
+                if(t.type === 'expense') {
+                    const cat = categories.find(c => c.id === t.categoryId);
+                    if(cat) {
+                        categoryStats[cat.name] += t.amount;
+                        totalExpenses += t.amount;
+                    }
+                }
+            });
+
+            const bilanData = Object.keys(categoryStats).map(catName => ({
+                "Catégorie": catName,
+                "Dépensé": categoryStats[catName],
+                "Part du Budget": totalExpenses > 0 ? (categoryStats[catName] / totalExpenses * 100).toFixed(1) + '%' : '0%'
+            }));
+            bilanData.push({ "Catégorie": "TOTAL DÉPENSES", "Dépensé": totalExpenses, "Part du Budget": "100%" });
+
+            const wb = XLSX.utils.book_new();
+            const wsJournal = XLSX.utils.json_to_sheet(journalData);
+            const wsProjects = XLSX.utils.json_to_sheet(projectsData);
+            const wsBilan = XLSX.utils.json_to_sheet(bilanData);
+            const wscols = [{wch:12}, {wch:10}, {wch:15}, {wch:10}, {wch:25}, {wch:15}];
+            wsJournal['!cols'] = wscols;
+
+            XLSX.utils.book_append_sheet(wb, wsJournal, "Journal Complet");
+            XLSX.utils.book_append_sheet(wb, wsProjects, "Mes Projets");
+            XLSX.utils.book_append_sheet(wb, wsBilan, "Bilan (Pour Graphiques)");
+
+            const fileName = `MonBudget_Export_${new Date().toISOString().slice(0,10)}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+        }
+
         let salary = parseInt(localStorage.getItem('salary')) || 0;
         const defaultCats = [ { id: 'c1', name: 'Banque', limit: 0 }, { id: 'c2', name: 'Maman', limit: 0 }, { id: 'c3', name: 'Transport', limit: 0 }, { id: 'c4', name: 'Projet', limit: 0 }, { id: 'c5', name: 'Imprévus', limit: 0 }, { id: 'c6', name: 'Plaisir', limit: 0 }, { id: 'c7', name: 'Divers', limit: 0 } ];
         let categories = JSON.parse(localStorage.getItem('categories')) || defaultCats;
@@ -399,17 +638,19 @@
         }
 
         let viewIndex = 0; 
-
-        // Remplir select jours reminder
         const daySel = document.getElementById('proj-reminder');
         for(let i=1; i<=31; i++) daySel.innerHTML += `<option value="${i}">Le ${i}</option>`;
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.getElementById('view-' + tabId).classList.add('active');
-            document.querySelectorAll('.nav-item').forEach(el => { el.classList.remove('nav-active', 'text-blue-600'); el.classList.add('text-gray-400'); });
+            document.querySelectorAll('.nav-item').forEach(el => { 
+                el.classList.remove('nav-active', 'text-blue-600', 'dark:text-blue-400'); 
+                el.classList.add('text-gray-400', 'dark:text-gray-500'); 
+            });
             const btn = document.getElementById('nav-' + tabId);
-            btn.classList.remove('text-gray-400'); btn.classList.add('nav-active', 'text-blue-600');
+            btn.classList.remove('text-gray-400', 'dark:text-gray-500'); 
+            btn.classList.add('nav-active', 'text-blue-600', 'dark:text-blue-400');
             if(tabId === 'projects') renderProjects();
             if(tabId === 'stats') renderArchive();
         }
@@ -438,7 +679,6 @@
                 displayStart = currentPeriodStart;
                 displayEnd = null; 
                 periodDisplay.innerText = "Période Actuelle";
-                periodDisplay.className = "font-bold text-green-600 text-sm capitalize block leading-tight";
                 const d = new Date(displayStart);
                 periodDates.innerText = `Depuis le ${d.getDate()} ${d.toLocaleString('fr-FR', {month:'short'})}`;
                 addCard.classList.remove('hidden');
@@ -452,7 +692,6 @@
                     displayStart = archived.start;
                     displayEnd = archived.end;
                     periodDisplay.innerText = "Archives";
-                    periodDisplay.className = "font-bold text-gray-500 text-sm capitalize block leading-tight";
                     const d1 = new Date(displayStart);
                     const d2 = new Date(displayEnd);
                     periodDates.innerText = `${d1.getDate()} ${d1.toLocaleString('fr-FR', {month:'short'})} - ${d2.getDate()} ${d2.toLocaleString('fr-FR', {month:'short'})}`;
@@ -473,7 +712,7 @@
 
             const balEl = document.getElementById('header-balance');
             balEl.innerText = balance.toLocaleString() + ' F';
-            balEl.className = `text-lg font-bold leading-none ${balance < 0 ? 'text-red-600' : 'text-green-700'}`;
+            balEl.className = `text-lg font-bold leading-none ${balance < 0 ? 'text-red-600' : 'text-green-700'} dark:${balance < 0 ? 'text-red-400' : 'text-green-400'}`;
 
             renderBudgetBars(filteredTrans);
             renderHistoryList(filteredTrans);
@@ -494,24 +733,26 @@
                     percent = Math.min((spent / cat.limit) * 100, 100);
                     const rest = cat.limit - spent;
                     barColor = rest < 0 ? 'bg-red-500' : (rest < cat.limit * 0.2 ? 'bg-yellow-500' : 'bg-blue-500');
-                    remainingText = `<span class="${rest < 0 ? 'text-red-500' : 'text-gray-400'} text-[10px] font-bold">Reste: ${rest.toLocaleString()}</span>`;
+                    remainingText = `<span class="${rest < 0 ? 'text-red-500' : 'text-gray-400'} dark:text-gray-400 text-[10px] font-bold">Reste: ${rest.toLocaleString()}</span>`;
                 }
-                container.innerHTML += `<div class="flex items-center gap-3"><div class="w-20 shrink-0 text-xs font-bold text-gray-700 truncate">${cat.name}</div><div class="flex-1"><div class="flex justify-between mb-1"><span class="text-[10px] text-gray-500">${spent.toLocaleString()} / ${cat.limit > 0 ? cat.limit.toLocaleString() : '∞'}</span>${remainingText}</div><div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden"><div class="${barColor} h-1.5 rounded-full transition-all duration-500" style="width: ${percent}%"></div></div></div></div>`;
+                container.innerHTML += `<div class="flex items-center gap-3"><div class="w-20 shrink-0 text-xs font-bold text-gray-700 dark:text-gray-300 truncate">${cat.name}</div><div class="flex-1"><div class="flex justify-between mb-1"><span class="text-[10px] text-gray-500 dark:text-gray-400">${spent.toLocaleString()} / ${cat.limit > 0 ? cat.limit.toLocaleString() : '∞'}</span>${remainingText}</div><div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden"><div class="${barColor} h-1.5 rounded-full transition-all duration-500" style="width: ${percent}%"></div></div></div></div>`;
             });
         }
 
         function renderHistoryList(transList) {
             const list = document.getElementById('journal-list'); list.innerHTML = '';
-            if(transList.length === 0) { list.innerHTML = '<div class="text-center text-xs text-gray-400 py-6 italic border border-dashed border-gray-200 rounded-xl">Aucune opération</div>'; return; }
+            if(transList.length === 0) { list.innerHTML = '<div class="text-center text-xs text-gray-400 py-6 italic border border-dashed border-gray-200 dark:border-gray-700 rounded-xl">Aucune opération</div>'; return; }
             transList.sort((a,b) => new Date(b.date) - new Date(a.date));
             transList.forEach(t => {
-                let label = t.desc; let color = t.type === 'expense' ? 'text-red-600' : 'text-green-600'; let sign = t.type === 'expense' ? '-' : '+';
+                let label = t.desc; 
+                let color = t.type === 'expense' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'; 
+                let sign = t.type === 'expense' ? '-' : '+';
                 if(t.type === 'expense') {
                     const c = categories.find(x => x.id === t.categoryId); label = c ? c.name : 'Dépense';
                     if(t.projectId) { const p = projects.find(x => x.id === t.projectId); if(p) label = `${c.name} <i class="fas fa-arrow-right text-[8px] text-gray-400 mx-1"></i> ${p.name}`; }
                 }
-                const delBtn = viewIndex === 0 ? `<button onclick="deleteTrans(${t.id})" class="text-gray-200 hover:text-red-400 ml-2"><i class="fas fa-trash-alt text-xs"></i></button>` : '';
-                list.innerHTML += `<div class="flex justify-between items-center bg-white border border-gray-100 p-3 rounded-xl shadow-sm mb-2"><div><div class="font-bold text-sm text-gray-700">${label}</div><div class="text-[10px] text-gray-400">${new Date(t.date).toLocaleDateString()}</div></div><div class="flex items-center"><div class="font-mono font-bold ${color}">${sign} ${t.amount.toLocaleString()}</div>${delBtn}</div></div>`;
+                const delBtn = viewIndex === 0 ? `<button onclick="deleteTrans(${t.id})" class="text-gray-200 dark:text-gray-500 hover:text-red-400 ml-2"><i class="fas fa-trash-alt text-xs"></i></button>` : '';
+                list.innerHTML += `<div class="flex justify-between items-center bg-white dark:bg-darkcard border border-gray-100 dark:border-gray-700 p-3 rounded-xl shadow-sm mb-2 transition-colors duration-300"><div><div class="font-bold text-sm text-gray-700 dark:text-gray-200">${label}</div><div class="text-[10px] text-gray-400">${new Date(t.date).toLocaleDateString()}</div></div><div class="flex items-center"><div class="font-mono font-bold ${color}">${sign} ${t.amount.toLocaleString()}</div>${delBtn}</div></div>`;
             });
         }
 
@@ -527,10 +768,10 @@
                     const encodedTitle = encodeURIComponent(`Épargne ${p.name}`);
                     const encodedDetails = encodeURIComponent(`Penser à déposer ${p.monthlyTarget}F pour le projet ${p.name}`);
                     const calUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodedTitle}&details=${encodedDetails}`;
-                    notifList.innerHTML += `<div class="bg-red-50 p-3 rounded-xl border border-red-100 flex items-center justify-between"><div><p class="text-xs font-bold text-red-600 uppercase">Rappel du ${p.reminderDay}</p><p class="text-sm font-bold text-gray-800">${p.name}</p><p class="text-xs text-gray-500">Montant prévu : ${p.monthlyTarget.toLocaleString()} F</p></div><a href="${calUrl}" target="_blank" class="bg-white text-red-500 p-2 rounded-lg border border-red-200 text-xs shadow-sm hover:bg-red-500 hover:text-white transition"><i class="fas fa-calendar-plus"></i></a></div>`;
+                    notifList.innerHTML += `<div class="bg-red-50 dark:bg-red-900/20 p-3 rounded-xl border border-red-100 dark:border-red-800 flex items-center justify-between"><div><p class="text-xs font-bold text-red-600 dark:text-red-400 uppercase">Rappel du ${p.reminderDay}</p><p class="text-sm font-bold text-gray-800 dark:text-gray-200">${p.name}</p><p class="text-xs text-gray-500 dark:text-gray-400">Montant prévu : ${p.monthlyTarget.toLocaleString()} F</p></div><a href="${calUrl}" target="_blank" class="bg-white dark:bg-gray-800 text-red-500 p-2 rounded-lg border border-red-200 dark:border-gray-700 text-xs shadow-sm hover:bg-red-500 hover:text-white transition"><i class="fas fa-calendar-plus"></i></a></div>`;
                 }
             });
-            if(count > 0) { badge.classList.remove('hidden'); document.getElementById('notif-btn').classList.add('bell-shake'); } else { badge.classList.add('hidden'); document.getElementById('notif-btn').classList.remove('bell-shake'); notifList.innerHTML = '<p class="text-center text-gray-400 text-sm">Rien à signaler aujourd\'hui.</p>'; }
+            if(count > 0) { badge.classList.remove('hidden'); document.getElementById('notif-btn').classList.add('bell-shake'); } else { badge.classList.add('hidden'); document.getElementById('notif-btn').classList.remove('bell-shake'); notifList.innerHTML = '<p class="text-center text-gray-400 dark:text-gray-500 text-sm">Rien à signaler aujourd\'hui.</p>'; }
         }
         function showNotifications() { document.getElementById('notif-modal').classList.remove('hidden'); }
 
@@ -557,10 +798,10 @@
             const btnExp = document.getElementById('btn-expense'); const btnInc = document.getElementById('btn-income');
             const catSec = document.getElementById('category-section'); const descSec = document.getElementById('desc-section'); const subBtn = document.getElementById('submit-btn');
             if(type === 'expense') {
-                btnExp.className = "flex-1 py-2 rounded-md text-sm font-bold shadow-sm bg-white text-red-600 transition"; btnInc.className = "flex-1 py-2 rounded-md text-sm font-bold text-gray-500 hover:text-green-600 transition";
+                btnExp.className = "flex-1 py-2 rounded-md text-sm font-bold shadow-sm bg-white dark:bg-gray-700 text-red-600 transition"; btnInc.className = "flex-1 py-2 rounded-md text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-green-600 transition";
                 catSec.classList.remove('hidden'); descSec.classList.add('hidden'); subBtn.classList.replace('bg-green-600', 'bg-red-600'); subBtn.classList.replace('hover:bg-green-700', 'hover:bg-red-700');
             } else {
-                btnExp.className = "flex-1 py-2 rounded-md text-sm font-bold text-gray-500 hover:text-red-600 transition"; btnInc.className = "flex-1 py-2 rounded-md text-sm font-bold shadow-sm bg-white text-green-600 transition";
+                btnExp.className = "flex-1 py-2 rounded-md text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-red-600 transition"; btnInc.className = "flex-1 py-2 rounded-md text-sm font-bold shadow-sm bg-white dark:bg-gray-700 text-green-600 transition";
                 catSec.classList.add('hidden'); descSec.classList.remove('hidden'); subBtn.classList.replace('bg-red-600', 'bg-green-600'); subBtn.classList.replace('hover:bg-red-700', 'hover:bg-green-700');
             }
         }
@@ -591,14 +832,14 @@
 
         function renderProjects() {
             const list = document.getElementById('projects-list'); list.innerHTML = '';
-            if(projects.length === 0) { list.innerHTML = `<div class="text-center py-10 text-gray-400"><i class="fas fa-rocket text-4xl mb-3 text-gray-200"></i><p>Aucun projet.</p></div>`; return; }
+            if(projects.length === 0) { list.innerHTML = `<div class="text-center py-10 text-gray-400 dark:text-gray-500"><i class="fas fa-rocket text-4xl mb-3 text-gray-200 dark:text-gray-700"></i><p>Aucun projet.</p></div>`; return; }
             projects.forEach(p => {
                 const saved = transactions.filter(t => t.projectId == p.id).reduce((sum, t) => sum + t.amount, 0);
                 const percent = Math.min((saved / p.cost) * 100, 100); const remaining = p.cost - saved;
                 let timeMsg = "Terminé ! 🎉";
                 if(remaining > 0 && p.monthlyTarget > 0) { const months = Math.ceil(remaining / p.monthlyTarget); timeMsg = `Encore <b>${months} paiements</b>`; }
-                const reminderIcon = p.reminderDay ? `<span class="text-[10px] bg-red-100 text-red-500 px-2 py-1 rounded-full"><i class="fas fa-bell"></i> Le ${p.reminderDay}</span>` : '';
-                list.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden"><div class="flex justify-between items-start mb-2"><div><h3 class="font-bold text-gray-800 text-lg">${p.name}</h3><div class="flex gap-2 items-center"><p class="text-xs text-gray-500">Obj: ${p.cost.toLocaleString()} F</p>${reminderIcon}</div></div><div class="text-right"><span class="block text-xl font-bold text-indigo-600">${saved.toLocaleString()} F</span><span class="text-[10px] text-gray-400">Épargnés</span></div></div><div class="w-full bg-gray-100 rounded-full h-2 mb-2"><div class="bg-indigo-500 h-2 rounded-full transition-all" style="width: ${percent}%"></div></div><div class="flex justify-between items-center bg-indigo-50 p-2 rounded-lg text-xs text-indigo-800"><span><i class="fas fa-hourglass-half mr-1"></i> ${timeMsg}</span><button onclick="deleteProject(${p.id})" class="text-indigo-300 hover:text-red-500"><i class="fas fa-trash"></i></button></div></div>`;
+                const reminderIcon = p.reminderDay ? `<span class="text-[10px] bg-red-100 dark:bg-red-900/30 text-red-500 dark:text-red-400 px-2 py-1 rounded-full"><i class="fas fa-bell"></i> Le ${p.reminderDay}</span>` : '';
+                list.innerHTML += `<div class="bg-white dark:bg-darkcard p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm relative overflow-hidden transition-colors duration-300"><div class="flex justify-between items-start mb-2"><div><h3 class="font-bold text-gray-800 dark:text-white text-lg">${p.name}</h3><div class="flex gap-2 items-center"><p class="text-xs text-gray-500 dark:text-gray-400">Obj: ${p.cost.toLocaleString()} F</p>${reminderIcon}</div></div><div class="text-right"><span class="block text-xl font-bold text-indigo-600 dark:text-indigo-400">${saved.toLocaleString()} F</span><span class="text-[10px] text-gray-400">Épargnés</span></div></div><div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 mb-2"><div class="bg-indigo-500 h-2 rounded-full transition-all" style="width: ${percent}%"></div></div><div class="flex justify-between items-center bg-indigo-50 dark:bg-indigo-900/20 p-2 rounded-lg text-xs text-indigo-800 dark:text-indigo-300"><span><i class="fas fa-hourglass-half mr-1"></i> ${timeMsg}</span><button onclick="deleteProject(${p.id})" class="text-indigo-300 hover:text-red-500"><i class="fas fa-trash"></i></button></div></div>`;
             });
         }
         function openProjectModal() { document.getElementById('project-modal').classList.remove('hidden'); }
@@ -611,14 +852,14 @@
 
         function renderArchive() {
             const list = document.getElementById('stats-list'); list.innerHTML = '';
-            if(periodHistory.length === 0) { list.innerHTML = '<p class="text-center text-gray-400 mt-10">Aucune archive.</p>'; return; }
+            if(periodHistory.length === 0) { list.innerHTML = '<p class="text-center text-gray-400 dark:text-gray-500 mt-10">Aucune archive.</p>'; return; }
             [...periodHistory].reverse().forEach(h => {
                 const d1 = new Date(h.start); const d2 = new Date(h.end);
-                list.innerHTML += `<div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100"><h3 class="font-bold text-gray-800 border-b pb-2 mb-2">Période du ${d1.toLocaleDateString()} au ${d2.toLocaleDateString()}</h3><p class="text-xs text-gray-500">Consulter les détails via les flèches < > en haut.</p></div>`;
+                list.innerHTML += `<div class="bg-white dark:bg-darkcard p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors duration-300"><h3 class="font-bold text-gray-800 dark:text-white border-b dark:border-gray-600 pb-2 mb-2">Période du ${d1.toLocaleDateString()} au ${d2.toLocaleDateString()}</h3><p class="text-xs text-gray-500 dark:text-gray-400">Consulter les détails via les flèches < > en haut.</p></div>`;
             });
         }
 
-        function openSettings() { document.getElementById('settings-modal').classList.remove('hidden'); const cont = document.getElementById('settings-content'); cont.innerHTML = `<div class="mb-4"><label class="text-xs font-bold text-gray-500 uppercase">Salaire Mensuel</label><input type="number" id="set-salary" value="${salary}" class="w-full p-2 border rounded font-bold"></div><div id="cat-list-edit" class="space-y-2"></div>`; const list = document.getElementById('cat-list-edit'); categories.forEach((c, idx) => { list.innerHTML += `<div class="flex gap-2"><input type="text" value="${c.name}" id="cat-name-${idx}" class="flex-1 p-2 border rounded text-xs font-bold"><input type="number" value="${c.limit}" id="cat-limit-${idx}" class="w-20 p-2 border rounded text-xs font-bold" placeholder="Budget"><button onclick="delCat(${idx})" class="text-red-500 px-2"><i class="fas fa-trash"></i></button></div>`; }); }
+        function openSettings() { document.getElementById('settings-modal').classList.remove('hidden'); const cont = document.getElementById('settings-content'); cont.innerHTML = `<div class="mb-4"><label class="text-xs font-bold text-gray-500 uppercase">Salaire Mensuel</label><input type="number" id="set-salary" value="${salary}" class="w-full p-2 border rounded font-bold dark:bg-gray-800 dark:text-white dark:border-gray-700"></div><div id="cat-list-edit" class="space-y-2"></div>`; const list = document.getElementById('cat-list-edit'); categories.forEach((c, idx) => { list.innerHTML += `<div class="flex gap-2"><input type="text" value="${c.name}" id="cat-name-${idx}" class="flex-1 p-2 border rounded text-xs font-bold dark:bg-gray-800 dark:text-white dark:border-gray-700"><input type="number" value="${c.limit}" id="cat-limit-${idx}" class="w-20 p-2 border rounded text-xs font-bold dark:bg-gray-800 dark:text-white dark:border-gray-700" placeholder="Budget"><button onclick="delCat(${idx})" class="text-red-500 px-2"><i class="fas fa-trash"></i></button></div>`; }); }
         function addNewCat() { categories.push({id: 'c'+Date.now(), name: 'Nouveau', limit: 0}); saveData(); openSettings(); }
         function delCat(idx) { if(confirm("Supprimer ?")) { categories.splice(idx, 1); saveData(); openSettings(); } }
         function saveSettings() { salary = parseInt(document.getElementById('set-salary').value) || 0; categories.forEach((c, idx) => { const n = document.getElementById(`cat-name-${idx}`); const l = document.getElementById(`cat-limit-${idx}`); if(n) c.name = n.value; if(l) c.limit = parseInt(l.value) || 0; }); saveData(); closeModal('settings-modal'); initDashboard(); }
@@ -629,9 +870,56 @@
         function importDataFile(input) { const file = input.files[0]; if(!file) return; const r = new FileReader(); r.onload = (e) => { try { const d = JSON.parse(e.target.result); if(confirm("Écraser les données ?")) { salary = d.salary || 0; categories = d.categories || []; transactions = d.transactions || []; projects = d.projects || []; periodHistory = d.periodHistory || []; currentPeriodStart = d.currentPeriodStart || new Date().toISOString().split('T')[0]; securityConfig = d.securityConfig || null; saveData(); location.reload(); } } catch(err) { alert("Erreur fichier"); } }; r.readAsText(file); }
         function fullReset() { if(confirm("TOUT EFFACER ?")) { localStorage.clear(); location.reload(); } }
 
-        // DEMARRAGE : Check Auth avant tout
-        checkAuth();
-        // initDashboard sera appelé par unlockApp ou si pas de sécu
+        // --- RAPPEL AUTOMATIQUE SAUVEGARDE (Script 2 semaines) ---
+        function checkBackupReminder() {
+            const LAST_REMINDER_KEY = 'lastBackupReminderDate';
+            const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000; // 14 jours en millisecondes
+            // Pour tester (mettre 10000 pour 10 secondes) :
+            // const TWO_WEEKS_MS = 10000; 
+
+            const lastDate = localStorage.getItem(LAST_REMINDER_KEY);
+            const now = Date.now();
+
+            // Si jamais affiché OU si le délai de 2 semaines est passé
+            if (!lastDate || (now - parseInt(lastDate) > TWO_WEEKS_MS)) {
+                showBackupToast();
+                // Mettre à jour la date
+                localStorage.setItem(LAST_REMINDER_KEY, now.toString());
+            }
+        }
+
+        function showBackupToast() {
+            const toast = document.getElementById('backup-toast');
+            toast.classList.remove('hidden');
+            
+            // Petite animation d'entrée
+            setTimeout(() => {
+                toast.classList.remove('toast-enter');
+                toast.classList.add('toast-enter-active');
+            }, 100);
+
+            // Disparition automatique après 20 secondes
+            setTimeout(() => {
+                closeBackupToast();
+            }, 20000); 
+        }
+
+        function closeBackupToast() {
+            const toast = document.getElementById('backup-toast');
+            toast.classList.remove('toast-enter-active');
+            toast.classList.add('toast-exit');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+                toast.classList.remove('toast-exit');
+                toast.classList.add('toast-enter'); // Reset pour la prochaine fois
+            }, 500);
+        }
+
+        // DEMARRAGE : Check Licence puis Auth
+        checkLicense();
+        
+        // Lancer la vérification du rappel de sauvegarde après le chargement
+        setTimeout(checkBackupReminder, 3000); // Attend 3 secondes que l'interface soit stable
 
     </script>
 </body>
