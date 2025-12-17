@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mon Planificateur Financier</title>
+    <title>Mon Coffre Financier</title>
     
-    <meta name="theme-color" content="#2563eb">
+    <meta name="theme-color" content="#4f46e5">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
@@ -15,11 +15,39 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
         
-        /* Animations */
+        /* Animations Générales */
         .modal-enter { opacity: 0; transform: scale(0.95); }
         .modal-enter-active { opacity: 1; transform: scale(1); transition: opacity 0.2s, transform 0.2s; }
         .slide-in { animation: slideIn 0.3s ease-out; }
         @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .bell-shake { animation: bellShake 2s infinite; }
+        @keyframes bellShake { 0%, 100% { transform: rotate(0); } 10%, 30%, 50%, 70%, 90% { transform: rotate(15deg); } 20%, 40%, 60%, 80% { transform: rotate(-15deg); } }
+
+        /* ÉCRAN DE CONNEXION (Style Luxe) */
+        #auth-overlay {
+            background: linear-gradient(-45deg, #1e3a8a, #4f46e5, #7c3aed, #2563eb);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+        }
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+        .shake-anim { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
 
         button, input, select { min-height: 44px; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
@@ -34,57 +62,132 @@
 </head>
 <body class="bg-gray-50 text-gray-800 h-screen flex flex-col overflow-hidden select-none">
 
-    <!-- HEADER NAVIGATION MOIS -->
+    <!-- ECRAN DE SECURITE (Overlay) -->
+    <div id="auth-overlay" class="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 text-white transition-transform duration-500">
+        
+        <!-- LOGO -->
+        <div class="mb-8 text-center">
+            <div class="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm border border-white/30 shadow-xl">
+                <i class="fas fa-shield-alt text-4xl text-white"></i>
+            </div>
+            <h1 class="text-3xl font-bold tracking-tight">Mon Coffre</h1>
+            <p class="text-blue-100 text-sm mt-1 opacity-80">Sécurité Maximale</p>
+        </div>
+
+        <!-- PANEL DE CONNEXION / INSCRIPTION -->
+        <div id="auth-box" class="glass-panel w-full max-w-sm rounded-3xl p-6 relative overflow-hidden">
+            
+            <!-- VUE 1 : LOGIN (PIN) -->
+            <div id="auth-login" class="space-y-6">
+                <p class="text-center font-medium">Entrez votre code d'accès</p>
+                <input type="tel" id="login-pin" maxlength="4" placeholder="• • • •" class="w-full bg-black/20 border border-white/10 rounded-xl py-4 text-center text-3xl font-bold text-white tracking-[1em] focus:outline-none focus:bg-black/30 placeholder-white/30 transition shadow-inner">
+                <button onclick="attemptLogin()" class="w-full bg-white text-blue-700 font-bold py-3 rounded-xl shadow-lg hover:bg-gray-100 transition transform active:scale-95">Déverrouiller</button>
+                <div class="text-center">
+                    <button onclick="showRecovery()" class="text-xs text-blue-200 hover:text-white underline opacity-80">Mot de passe oublié ?</button>
+                </div>
+            </div>
+
+            <!-- VUE 2 : SETUP (Création) -->
+            <div id="auth-setup" class="hidden space-y-4">
+                <h3 class="text-center font-bold text-lg mb-2">Création du Compte</h3>
+                <div>
+                    <label class="text-xs font-bold uppercase text-blue-200 ml-1">Nouveau Code PIN (4 chiffres)</label>
+                    <input type="tel" id="setup-pin" maxlength="4" placeholder="0000" class="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-center text-lg font-bold text-white focus:outline-none focus:border-white/50">
+                </div>
+                <div>
+                    <label class="text-xs font-bold uppercase text-blue-200 ml-1">Question Secrète (Récupération)</label>
+                    <select id="setup-question" class="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-sm text-white focus:outline-none">
+                        <option value="animal">Nom de mon premier animal ?</option>
+                        <option value="ville">Ville de naissance de ma mère ?</option>
+                        <option value="ecole">Nom de mon école primaire ?</option>
+                        <option value="surnom">Mon surnom d'enfance ?</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold uppercase text-blue-200 ml-1">Votre Réponse</label>
+                    <input type="text" id="setup-answer" placeholder="Réponse..." class="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-sm font-bold text-white focus:outline-none">
+                </div>
+                <button onclick="saveSecurityConfig()" class="w-full bg-green-500 text-white font-bold py-3 rounded-xl shadow-lg mt-2 hover:bg-green-600 transition">Créer mon Coffre</button>
+            </div>
+
+            <!-- VUE 3 : RECOVERY (Oubli) -->
+            <div id="auth-recovery" class="hidden space-y-4">
+                <div class="flex items-center text-yellow-300 mb-2">
+                    <i class="fas fa-key mr-2"></i> <h3 class="font-bold">Récupération</h3>
+                </div>
+                <p class="text-sm text-blue-100" id="recovery-question-display">Question...</p>
+                <input type="text" id="recovery-answer" placeholder="Votre réponse..." class="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-sm font-bold text-white focus:outline-none">
+                
+                <div id="recovery-new-pin-area" class="hidden space-y-2 mt-2 pt-2 border-t border-white/10">
+                    <label class="text-xs text-green-300 font-bold">Nouveau Code PIN</label>
+                    <input type="tel" id="recovery-new-pin" maxlength="4" placeholder="New PIN" class="w-full bg-green-900/40 border border-green-400/30 rounded-xl p-3 text-center font-bold text-white">
+                </div>
+
+                <div class="flex gap-2 mt-2">
+                    <button onclick="showLogin()" class="flex-1 bg-white/10 text-white font-bold py-2 rounded-xl text-sm">Annuler</button>
+                    <button onclick="verifyRecovery()" id="recovery-btn" class="flex-1 bg-yellow-500 text-yellow-900 font-bold py-2 rounded-xl text-sm shadow-lg">Vérifier</button>
+                </div>
+            </div>
+
+        </div>
+        <p class="mt-8 text-xs text-blue-200 opacity-60">Données stockées localement & sécurisées</p>
+    </div>
+
+
+    <!-- ==================== APPLICATION PRINCIPALE (Masquée au début) ==================== -->
+    
+    <!-- HEADER -->
     <header class="bg-white shadow-sm z-20 px-2 py-3 shrink-0">
         <div class="flex justify-between items-center mb-2 px-2">
             <div>
                 <h1 class="font-bold text-gray-800 flex items-center text-sm"><i class="fas fa-wallet text-blue-600 mr-2"></i> Mon Budget</h1>
-                <!-- Correction : Ajout de l'affichage du salaire de base -->
                 <p class="text-[10px] text-gray-500">Base: <span id="salary-display" class="font-bold text-gray-700">0 F</span></p>
             </div>
-            <div class="bg-green-50 px-3 py-1 rounded-lg border border-green-100 text-right">
-                <p class="text-[10px] text-green-600 uppercase font-bold">Reste à vivre</p>
-                <p id="header-balance" class="text-lg font-bold text-green-700 leading-none">0 F</p>
+            <div class="flex gap-2">
+                <button onclick="showNotifications()" id="notif-btn" class="relative p-2 text-gray-400 hover:text-blue-600">
+                    <i class="fas fa-bell text-xl"></i>
+                    <span id="notif-badge" class="hidden absolute top-1 right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></span>
+                </button>
+                <!-- Bouton Verrouiller -->
+                <button onclick="lockApp()" class="p-2 text-gray-400 hover:text-red-600" title="Verrouiller">
+                    <i class="fas fa-lock text-xl"></i>
+                </button>
+                <div class="bg-green-50 px-3 py-1 rounded-lg border border-green-100 text-right">
+                    <p class="text-[10px] text-green-600 uppercase font-bold">Reste à vivre</p>
+                    <p id="header-balance" class="text-lg font-bold text-green-700 leading-none">0 F</p>
+                </div>
             </div>
         </div>
         
-        <!-- SÉLECTEUR DE MOIS -->
+        <!-- SÉLECTEUR DE PÉRIODE -->
         <div class="flex items-center justify-between bg-gray-100 rounded-xl p-1 mx-1">
-            <button onclick="changeMonth(-1)" class="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-blue-600 active:scale-90 transition"><i class="fas fa-chevron-left"></i></button>
+            <button onclick="changePeriodView(-1)" class="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-blue-600 active:scale-90 transition"><i class="fas fa-chevron-left"></i></button>
             <div class="text-center">
-                <span id="current-month-display" class="font-bold text-gray-800 text-lg capitalize block leading-tight">Décembre 2025</span>
-                <span id="month-status" class="text-[10px] uppercase font-bold text-green-500">En cours</span>
+                <span id="period-display" class="font-bold text-gray-800 text-sm capitalize block leading-tight">Période Actuelle</span>
+                <span id="period-dates" class="text-[10px] uppercase font-bold text-blue-500">Depuis le 10 Déc</span>
             </div>
-            <button onclick="changeMonth(1)" class="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-blue-600 active:scale-90 transition"><i class="fas fa-chevron-right"></i></button>
+            <button onclick="changePeriodView(1)" class="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-blue-600 active:scale-90 transition"><i class="fas fa-chevron-right"></i></button>
         </div>
     </header>
 
-    <!-- CONTENU PRINCIPAL -->
+    <!-- MAIN CONTAINER -->
     <main class="flex-1 overflow-y-auto pb-24 p-4 hide-scrollbar relative" id="main-container">
-        
-        <!-- VUE 1 : JOURNAL -->
+        <!-- VUE JOURNAL -->
         <div id="view-journal" class="tab-content active space-y-6">
-            
-            <!-- État des Budgets du Mois -->
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
                 <div class="flex justify-between items-center mb-3">
-                    <h2 class="font-bold text-gray-700 text-sm uppercase">Budgets Mensuels</h2>
+                    <h2 class="font-bold text-gray-700 text-sm uppercase">État de la période</h2>
                     <button onclick="openSettings()" class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-md"><i class="fas fa-sliders-h"></i> Ajuster</button>
                 </div>
                 <div class="space-y-3" id="budget-bars"></div>
-                
-                <!-- BOUTON CLÔTURE -->
-                <div id="closing-section" class="mt-4 pt-3 border-t border-gray-100 text-center hidden">
-                    <button onclick="startClosingProcess()" class="w-full py-2 bg-gray-800 text-white rounded-lg font-bold text-sm shadow-md hover:bg-black transition">
-                        <i class="fas fa-flag-checkered mr-2"></i> Clôturer ce Mois
-                    </button>
+                <div id="closing-section" class="mt-4 pt-3 border-t border-gray-100 text-center">
+                    <button onclick="startClosingProcess()" class="w-full py-3 bg-gray-900 text-white rounded-xl font-bold text-sm shadow-md hover:bg-black transition flex items-center justify-center"><i class="fas fa-flag-checkered mr-2 text-yellow-400"></i> Clôturer la Période (Salaire reçu)</button>
+                    <p class="text-[10px] text-gray-400 mt-2">Clique ici quand tu reçois ton nouveau salaire pour faire le bilan.</p>
                 </div>
-                <div id="closed-msg" class="mt-4 pt-3 border-t border-gray-100 text-center hidden">
-                    <span class="inline-block bg-gray-100 text-gray-500 px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-lock mr-1"></i> Mois Clôturé</span>
-                </div>
+                <div id="archived-msg" class="hidden mt-4 pt-3 border-t border-gray-100 text-center"><span class="inline-block bg-gray-100 text-gray-500 px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-history mr-1"></i> Période Archivée</span></div>
             </div>
 
-            <!-- Formulaire Ajout (Caché si mois futur/passé clôturé) -->
+            <!-- Ajout -->
             <div id="add-transaction-card" class="bg-white rounded-2xl shadow-lg border border-blue-100 p-5 relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
                 <h2 class="font-bold text-gray-800 mb-4 flex items-center"><i class="fas fa-plus-circle text-blue-500 mr-2"></i>Nouvelle Opération</h2>
@@ -100,138 +203,207 @@
                     </div>
                     <div id="category-section">
                         <label class="text-[10px] uppercase font-bold text-gray-400 mb-1 block">Poste de dépense</label>
-                        <div class="grid grid-cols-3 gap-2" id="category-buttons"></div>
-                        <input type="hidden" id="category-input">
+                        <div class="relative">
+                            <select id="category-select" onchange="onCategoryChange(this)" class="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 font-bold text-gray-700 outline-none text-sm appearance-none"></select>
+                            <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-500"><i class="fas fa-chevron-down text-xs"></i></div>
+                        </div>
                     </div>
                     <div id="project-link-section" class="hidden bg-indigo-50 p-3 rounded-xl border border-indigo-100">
                         <label class="text-[10px] uppercase font-bold text-indigo-500 mb-1 block"><i class="fas fa-link mr-1"></i>Lier à un projet ?</label>
                         <select id="project-select" class="w-full bg-white border border-indigo-200 rounded-lg p-2 text-sm text-indigo-900 outline-none"><option value="">-- Aucun --</option></select>
                     </div>
-                    <div id="desc-section" class="hidden">
-                        <label class="text-[10px] uppercase font-bold text-gray-400">Description</label>
-                        <input type="text" id="description" placeholder="Ex: Prime..." class="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 font-medium text-sm outline-none">
-                    </div>
+                    <div id="desc-section" class="hidden"><label class="text-[10px] uppercase font-bold text-gray-400">Description</label><input type="text" id="description" placeholder="Ex: Prime..." class="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 font-medium text-sm outline-none"></div>
                     <button type="submit" id="submit-btn" class="w-full py-3 bg-red-600 text-white rounded-xl font-bold shadow-md hover:bg-red-700 active:scale-95 transition">Enregistrer</button>
                 </form>
             </div>
-
-            <!-- Liste groupée par jour -->
-            <div class="pb-4">
-                <h3 class="font-bold text-gray-500 text-xs uppercase mb-3 ml-1">Journal du Mois</h3>
-                <div id="journal-list" class="space-y-4"></div>
-            </div>
+            <div class="pb-4"><h3 class="font-bold text-gray-500 text-xs uppercase mb-3 ml-1">Opérations de la période</h3><div id="journal-list" class="space-y-4"></div></div>
         </div>
 
-        <!-- VUE 2 : PROJETS -->
+        <!-- VUE PROJETS -->
         <div id="view-projects" class="tab-content space-y-6">
-            <div class="flex justify-between items-end">
-                <div><h2 class="text-2xl font-bold text-gray-800">Mes Projets</h2><p class="text-xs text-gray-500">Réalise tes rêves étape par étape.</p></div>
-                <button onclick="openProjectModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md active:scale-95 transition"><i class="fas fa-plus mr-1"></i> Nouveau</button>
-            </div>
+            <div class="flex justify-between items-end"><div><h2 class="text-2xl font-bold text-gray-800">Mes Projets</h2><p class="text-xs text-gray-500">Réalise tes rêves étape par étape.</p></div><button onclick="openProjectModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md active:scale-95 transition"><i class="fas fa-plus mr-1"></i> Nouveau</button></div>
             <div id="projects-list" class="space-y-4"></div>
         </div>
 
-        <!-- VUE 3 : BILAN -->
+        <!-- VUE ARCHIVES -->
         <div id="view-stats" class="tab-content space-y-6">
-            <h2 class="text-2xl font-bold text-gray-800">Bilan Annuel</h2>
+            <h2 class="text-2xl font-bold text-gray-800">Historique des Périodes</h2>
             <div id="stats-list" class="space-y-4"></div>
-
-            <!-- ZONE SÉCURITÉ -->
-            <div class="mt-8 bg-blue-50 border border-blue-100 rounded-2xl p-5">
-                <h3 class="font-bold text-blue-800 mb-2"><i class="fas fa-shield-alt mr-2"></i>Sécurité des Données</h3>
-                <div class="flex gap-3">
-                    <button onclick="exportData()" class="flex-1 py-3 bg-white border border-blue-200 text-blue-700 font-bold rounded-xl shadow-sm text-sm"><i class="fas fa-download mr-2"></i>Sauver</button>
-                    <button onclick="importDataClick()" class="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-md text-sm"><i class="fas fa-upload mr-2"></i>Restaurer</button>
-                    <input type="file" id="import-input" class="hidden" onchange="importDataFile(this)">
-                </div>
-            </div>
+            <div class="mt-8 bg-blue-50 border border-blue-100 rounded-2xl p-5"><h3 class="font-bold text-blue-800 mb-2"><i class="fas fa-shield-alt mr-2"></i>Sécurité</h3><div class="flex gap-3"><button onclick="exportData()" class="flex-1 py-3 bg-white border border-blue-200 text-blue-700 font-bold rounded-xl shadow-sm text-sm"><i class="fas fa-download mr-2"></i>Sauver</button><button onclick="importDataClick()" class="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-md text-sm"><i class="fas fa-upload mr-2"></i>Restaurer</button><input type="file" id="import-input" class="hidden" onchange="importDataFile(this)"></div></div>
         </div>
     </main>
 
-    <!-- NAVIGATION BAS -->
+    <!-- NAV BOTTOM -->
     <nav class="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex justify-around py-3 z-40 pb-safe">
         <button onclick="switchTab('journal')" class="nav-item nav-active flex flex-col items-center w-1/3" id="nav-journal"><i class="fas fa-calendar-day text-xl mb-1"></i><span class="text-[10px] font-bold">Journal</span></button>
         <button onclick="switchTab('projects')" class="nav-item text-gray-400 flex flex-col items-center w-1/3" id="nav-projects"><i class="fas fa-rocket text-xl mb-1"></i><span class="text-[10px] font-bold">Projets</span></button>
-        <button onclick="switchTab('stats')" class="nav-item text-gray-400 flex flex-col items-center w-1/3" id="nav-stats"><i class="fas fa-chart-bar text-xl mb-1"></i><span class="text-[10px] font-bold">Bilan</span></button>
+        <button onclick="switchTab('stats')" class="nav-item text-gray-400 flex flex-col items-center w-1/3" id="nav-stats"><i class="fas fa-history text-xl mb-1"></i><span class="text-[10px] font-bold">Archives</span></button>
     </nav>
 
-    <!-- MODAL CLÔTURE -->
+    <!-- MODALS (Hidden by default) -->
     <div id="closing-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
             <div class="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4 text-yellow-600 text-3xl"><i class="fas fa-trophy"></i></div>
-            <h3 class="font-bold text-2xl text-gray-800 mb-1">Bilan du Mois</h3>
-            <p class="text-sm text-gray-500 mb-6">Voici ce qu'il te reste :</p>
-            
+            <h3 class="font-bold text-2xl text-gray-800 mb-1">Bilan de Période</h3>
+            <p class="text-sm text-gray-500 mb-6">Tu clôtures cette période. Résultat :</p>
             <div class="text-4xl font-bold text-green-600 mb-2" id="closing-surplus">0 F</div>
-            <p class="text-xs text-gray-400 mb-6">Ce montant est un SURPLUS non dépensé.</p>
-
+            <p class="text-xs text-gray-400 mb-6">C'est ton SURPLUS (Reste à vivre).</p>
             <div class="space-y-3">
-                <button onclick="processClosing('project')" class="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold shadow-lg active:scale-95 transition">
-                    <i class="fas fa-rocket mr-2"></i> Investir dans un Projet
-                </button>
-                <button onclick="processClosing('carryover')" class="w-full py-4 bg-green-600 text-white rounded-xl font-bold shadow-lg active:scale-95 transition">
-                    <i class="fas fa-calendar-plus mr-2"></i> Reporter au mois suivant
-                </button>
-                <button onclick="processClosing('keep')" class="w-full py-3 bg-gray-100 text-gray-600 rounded-xl font-bold active:scale-95 transition">
-                    Ne rien faire (Juste fermer)
-                </button>
+                <button onclick="processClosing('project')" class="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold shadow-lg active:scale-95 transition"><i class="fas fa-rocket mr-2"></i> Investir dans un Projet</button>
+                <button onclick="processClosing('carryover')" class="w-full py-4 bg-green-600 text-white rounded-xl font-bold shadow-lg active:scale-95 transition"><i class="fas fa-calendar-plus mr-2"></i> Reporter sur la prochaine période</button>
+                <button onclick="processClosing('keep')" class="w-full py-3 bg-gray-100 text-gray-600 rounded-xl font-bold active:scale-95 transition">Juste fermer (Pas de report)</button>
             </div>
         </div>
     </div>
-
-    <!-- MODAL INVESTISSEMENT (Choix Projet) -->
-    <div id="invest-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
-            <h3 class="font-bold text-lg text-gray-800 mb-4">Quel projet financer ?</h3>
-            <div id="invest-list" class="space-y-2 max-h-60 overflow-y-auto mb-4"></div>
-            <button onclick="closeModal('invest-modal')" class="w-full py-3 bg-gray-100 text-gray-600 rounded-xl font-bold">Annuler</button>
-        </div>
-    </div>
-
-    <!-- MODAL PARAMÈTRES -->
-    <div id="settings-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
-            <div class="p-4 border-b border-gray-100 flex justify-between items-center">
-                <h3 class="font-bold text-lg text-gray-800">Paramètres</h3>
-                <button onclick="closeModal('settings-modal')" class="text-gray-400"><i class="fas fa-times text-xl"></i></button>
-            </div>
-            <div class="p-4 overflow-y-auto flex-1 hide-scrollbar" id="settings-content"></div>
-            <div class="p-4 border-t bg-gray-50 rounded-b-2xl flex gap-3">
-                 <button onclick="addNewCat()" class="flex-1 py-3 border border-blue-200 text-blue-600 rounded-xl font-bold text-sm">Nouveau Poste</button>
-                 <button onclick="saveSettings()" class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg text-sm">Sauvegarder</button>
-            </div>
-            <div class="p-2 text-center"><button onclick="fullReset()" class="text-xs text-red-400 underline p-2">Effacer toutes les données (Reset)</button></div>
-        </div>
-    </div>
-
-    <!-- MODAL NOUVEAU PROJET -->
-    <div id="project-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
-            <h3 class="font-bold text-xl text-indigo-800 mb-4">Nouveau Projet</h3>
-            <div class="space-y-4">
-                <div><label class="text-xs uppercase font-bold text-gray-400">Nom</label><input type="text" id="proj-name" placeholder="Ex: Ordi..." class="w-full p-3 bg-indigo-50 rounded-xl border border-indigo-100 font-bold outline-none"></div>
-                <div><label class="text-xs uppercase font-bold text-gray-400">Coût Total</label><input type="number" id="proj-cost" placeholder="0" class="w-full p-3 bg-indigo-50 rounded-xl border border-indigo-100 font-bold outline-none"></div>
-                <div><label class="text-xs uppercase font-bold text-gray-400">Épargne / mois</label><input type="number" id="proj-monthly" placeholder="0" class="w-full p-3 bg-indigo-50 rounded-xl border border-indigo-100 font-bold outline-none"><p class="text-[10px] text-gray-400 mt-1">Pour estimer la durée.</p></div>
-            </div>
-            <div class="mt-6 flex gap-3"><button onclick="closeModal('project-modal')" class="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold">Annuler</button><button onclick="createProject()" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg">Créer</button></div>
-        </div>
-    </div>
+    <div id="notif-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-lg text-gray-800"><i class="fas fa-bell text-red-500 mr-2"></i> Rappels du jour</h3><button onclick="closeModal('notif-modal')" class="text-gray-400"><i class="fas fa-times"></i></button></div><div id="notif-list" class="space-y-3 mb-4"></div><p class="text-[10px] text-gray-400 text-center italic">Ces rappels s'affichent quand le jour J arrive.</p></div></div>
+    <div id="invest-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"><h3 class="font-bold text-lg text-gray-800 mb-4">Quel projet financer ?</h3><div id="invest-list" class="space-y-2 max-h-60 overflow-y-auto mb-4"></div><button onclick="closeModal('invest-modal')" class="w-full py-3 bg-gray-100 text-gray-600 rounded-xl font-bold">Annuler</button></div></div>
+    <div id="settings-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]"><div class="p-4 border-b border-gray-100 flex justify-between items-center"><h3 class="font-bold text-lg text-gray-800">Paramètres</h3><button onclick="closeModal('settings-modal')" class="text-gray-400"><i class="fas fa-times text-xl"></i></button></div><div class="p-4 overflow-y-auto flex-1 hide-scrollbar" id="settings-content"></div><div class="p-4 border-t bg-gray-50 rounded-b-2xl flex gap-3"><button onclick="addNewCat()" class="flex-1 py-3 border border-blue-200 text-blue-600 rounded-xl font-bold text-sm">Nouveau Poste</button><button onclick="saveSettings()" class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg text-sm">Sauvegarder</button></div><div class="p-2 text-center"><button onclick="fullReset()" class="text-xs text-red-400 underline p-2">Effacer toutes les données (Reset)</button></div></div></div>
+    <div id="project-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center z-50 p-4 backdrop-blur-sm"><div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"><h3 class="font-bold text-xl text-indigo-800 mb-4">Nouveau Projet</h3><div class="space-y-4"><div><label class="text-xs uppercase font-bold text-gray-400">Nom</label><input type="text" id="proj-name" placeholder="Ex: Ordi..." class="w-full p-3 bg-indigo-50 rounded-xl border border-indigo-100 font-bold outline-none"></div><div><label class="text-xs uppercase font-bold text-gray-400">Coût Total</label><input type="number" id="proj-cost" placeholder="0" class="w-full p-3 bg-indigo-50 rounded-xl border border-indigo-100 font-bold outline-none"></div><div class="flex gap-2"><div class="flex-1"><label class="text-xs uppercase font-bold text-gray-400">Épargne / mois</label><input type="number" id="proj-monthly" placeholder="0" class="w-full p-3 bg-indigo-50 rounded-xl border border-indigo-100 font-bold outline-none"></div><div class="w-24"><label class="text-xs uppercase font-bold text-red-400"><i class="fas fa-bell"></i> Rappel</label><select id="proj-reminder" class="w-full p-3 bg-red-50 rounded-xl border border-red-100 font-bold outline-none text-sm"><option value="">Non</option></select></div></div><p class="text-[10px] text-gray-400">Choisis un jour pour recevoir une alerte dans l'appli.</p></div><div class="mt-6 flex gap-3"><button onclick="closeModal('project-modal')" class="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold">Annuler</button><button onclick="createProject()" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg">Créer</button></div></div></div>
 
     <script>
-        // --- DONNÉES & ÉTAT ---
+        // --- AUTHENTIFICATION & SÉCURITÉ ---
+        const authOverlay = document.getElementById('auth-overlay');
+        let securityConfig = JSON.parse(localStorage.getItem('securityConfig'));
+
+        function checkAuth() {
+            // Si pas de config, montrer le setup
+            if (!securityConfig) {
+                document.getElementById('auth-login').classList.add('hidden');
+                document.getElementById('auth-setup').classList.remove('hidden');
+            } else {
+                // Si config, montrer login
+                document.getElementById('auth-setup').classList.add('hidden');
+                document.getElementById('auth-login').classList.remove('hidden');
+                // Auto focus sur PIN
+                setTimeout(() => document.getElementById('login-pin').focus(), 500);
+            }
+        }
+
+        function saveSecurityConfig() {
+            const pin = document.getElementById('setup-pin').value;
+            const question = document.getElementById('setup-question').value;
+            const answer = document.getElementById('setup-answer').value;
+
+            if (pin.length !== 4) { alert("Le code PIN doit faire 4 chiffres"); return; }
+            if (!answer) { alert("La réponse secrète est obligatoire pour récupérer le compte !"); return; }
+
+            securityConfig = { pin: pin, question: question, answer: answer.toLowerCase().trim() };
+            localStorage.setItem('securityConfig', JSON.stringify(securityConfig));
+            
+            // Succès
+            unlockApp();
+        }
+
+        function attemptLogin() {
+            const input = document.getElementById('login-pin');
+            if (input.value === securityConfig.pin) {
+                unlockApp();
+                input.value = "";
+            } else {
+                // Shake effect
+                const box = document.getElementById('auth-box');
+                box.classList.add('shake-anim');
+                input.value = "";
+                setTimeout(() => box.classList.remove('shake-anim'), 500);
+            }
+        }
+
+        function unlockApp() {
+            authOverlay.style.transform = "translateY(-100%)";
+            // Lancer l'app si pas déjà fait
+            // initDashboard is called at end of script, so it's ready.
+        }
+
+        function lockApp() {
+            authOverlay.style.transform = "translateY(0%)";
+            document.getElementById('auth-login').classList.remove('hidden');
+            document.getElementById('auth-setup').classList.add('hidden');
+            document.getElementById('auth-recovery').classList.add('hidden');
+            document.getElementById('login-pin').value = "";
+        }
+
+        // --- RECUPERATION ---
+        function showRecovery() {
+            document.getElementById('auth-login').classList.add('hidden');
+            document.getElementById('auth-recovery').classList.remove('hidden');
+            
+            // Afficher la bonne question
+            const qSelect = document.getElementById('setup-question');
+            // Trouver le texte correspondant à la valeur sauvegardée
+            let qText = "Question secrète ?";
+            // Mapping manuel car le select est dans une autre vue
+            const map = {
+                'animal': "Nom de mon premier animal ?",
+                'ville': "Ville de naissance de ma mère ?",
+                'ecole': "Nom de mon école primaire ?",
+                'surnom': "Mon surnom d'enfance ?"
+            };
+            if(securityConfig && securityConfig.question) qText = map[securityConfig.question];
+            document.getElementById('recovery-question-display').innerText = qText;
+        }
+
+        function showLogin() {
+            document.getElementById('auth-recovery').classList.add('hidden');
+            document.getElementById('auth-login').classList.remove('hidden');
+        }
+
+        function verifyRecovery() {
+            const ans = document.getElementById('recovery-answer').value.toLowerCase().trim();
+            const btn = document.getElementById('recovery-btn');
+            
+            if (ans === securityConfig.answer) {
+                // Succès : Montrer champ nouveau PIN
+                document.getElementById('recovery-new-pin-area').classList.remove('hidden');
+                btn.innerText = "Changer le PIN";
+                btn.onclick = changePinFromRecovery;
+                btn.classList.replace('bg-yellow-500', 'bg-green-500');
+                btn.classList.replace('text-yellow-900', 'text-white');
+            } else {
+                alert("Mauvaise réponse !");
+            }
+        }
+
+        function changePinFromRecovery() {
+            const newPin = document.getElementById('recovery-new-pin').value;
+            if (newPin.length !== 4) { alert("Le PIN doit faire 4 chiffres"); return; }
+            
+            securityConfig.pin = newPin;
+            localStorage.setItem('securityConfig', JSON.stringify(securityConfig));
+            alert("Code PIN modifié avec succès !");
+            
+            // Reset UI
+            document.getElementById('recovery-answer').value = "";
+            document.getElementById('recovery-new-pin').value = "";
+            document.getElementById('recovery-new-pin-area').classList.add('hidden');
+            const btn = document.getElementById('recovery-btn');
+            btn.innerText = "Vérifier";
+            btn.onclick = verifyRecovery;
+            btn.classList.replace('bg-green-500', 'bg-yellow-500');
+            btn.classList.replace('text-white', 'text-yellow-900');
+            
+            showLogin();
+        }
+
+        // --- APP LOGIC (Reste identique V7.1) ---
         let salary = parseInt(localStorage.getItem('salary')) || 0;
         const defaultCats = [ { id: 'c1', name: 'Banque', limit: 0 }, { id: 'c2', name: 'Maman', limit: 0 }, { id: 'c3', name: 'Transport', limit: 0 }, { id: 'c4', name: 'Projet', limit: 0 }, { id: 'c5', name: 'Imprévus', limit: 0 }, { id: 'c6', name: 'Plaisir', limit: 0 }, { id: 'c7', name: 'Divers', limit: 0 } ];
         let categories = JSON.parse(localStorage.getItem('categories')) || defaultCats;
         let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
         let projects = JSON.parse(localStorage.getItem('projects')) || [];
-        let closedMonths = JSON.parse(localStorage.getItem('closedMonths')) || [];
+        let periodHistory = JSON.parse(localStorage.getItem('periodHistory')) || [];
+        let currentPeriodStart = localStorage.getItem('currentPeriodStart');
+        
+        if (!currentPeriodStart) {
+            currentPeriodStart = new Date().toISOString().split('T')[0];
+            localStorage.setItem('currentPeriodStart', currentPeriodStart);
+        }
 
-        // Gestion Date Courante (Mois affiché)
-        let displayDate = new Date();
-        // Pour éviter les bugs de fuseau, on fixe au 1er du mois
-        displayDate.setDate(1); 
+        let viewIndex = 0; 
 
-        // --- NAVIGATION ---
+        // Remplir select jours reminder
+        const daySel = document.getElementById('proj-reminder');
+        for(let i=1; i<=31; i++) daySel.innerHTML += `<option value="${i}">Le ${i}</option>`;
+
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.getElementById('view-' + tabId).classList.add('active');
@@ -239,97 +411,84 @@
             const btn = document.getElementById('nav-' + tabId);
             btn.classList.remove('text-gray-400'); btn.classList.add('nav-active', 'text-blue-600');
             if(tabId === 'projects') renderProjects();
-            if(tabId === 'stats') renderStats();
+            if(tabId === 'stats') renderArchive();
         }
 
-        function changeMonth(delta) {
-            displayDate.setMonth(displayDate.getMonth() + delta);
+        function changePeriodView(delta) {
+            const maxIndex = periodHistory.length;
+            viewIndex += delta;
+            if (viewIndex < 0) viewIndex = 0;
+            if (viewIndex > maxIndex) viewIndex = maxIndex;
             initDashboard();
         }
 
-        // --- DASHBOARD CORE ---
         function initDashboard() {
-            // Mise à jour En-tête Mois
-            const options = { month: 'long', year: 'numeric' };
-            document.getElementById('current-month-display').innerText = displayDate.toLocaleDateString('fr-FR', options);
-            
-            // Vérifier si mois clôturé ou futur
-            const monthKey = getMonthKey(displayDate);
-            const isClosed = closedMonths.includes(monthKey);
-            const now = new Date();
-            const currentMonthKey = getMonthKey(now);
-            
-            // État visuel
-            const statusEl = document.getElementById('month-status');
-            const addCard = document.getElementById('add-transaction-card');
-            const closeBtn = document.getElementById('closing-section');
-            const closedMsg = document.getElementById('closed-msg');
-
-            if (isClosed) {
-                statusEl.innerText = "Clôturé"; statusEl.className = "text-[10px] uppercase font-bold text-gray-400";
-                addCard.classList.add('hidden');
-                closeBtn.classList.add('hidden');
-                closedMsg.classList.remove('hidden');
-            } else if (monthKey > currentMonthKey) {
-                statusEl.innerText = "Futur (Prévisions)"; statusEl.className = "text-[10px] uppercase font-bold text-indigo-500";
-                addCard.classList.remove('hidden'); // On peut planifier
-                closeBtn.classList.add('hidden');
-                closedMsg.classList.add('hidden');
-            } else {
-                statusEl.innerText = "En cours"; statusEl.className = "text-[10px] uppercase font-bold text-green-500";
-                addCard.classList.remove('hidden');
-                closeBtn.classList.remove('hidden');
-                closedMsg.classList.add('hidden');
-            }
-
-            // Date par défaut dans le formulaire = Aujourd'hui ou 1er du mois affiché
-            const inputDate = document.getElementById('date');
-            if(monthKey === currentMonthKey) {
-                inputDate.valueAsDate = new Date();
-            } else {
-                // Mettre le 1er du mois affiché
-                const d = new Date(displayDate);
-                d.setDate(2); // Astuce pour éviter décalage UTC
-                inputDate.value = d.toISOString().split('T')[0];
-            }
-
-            // Correction : Vérifier l'existence de l'élément avant de le mettre à jour
             const salaryEl = document.getElementById('salary-display');
             if(salaryEl) salaryEl.innerText = salary.toLocaleString() + ' F';
 
-            renderCategoriesBtn(); 
-            renderBudgetBars(monthKey); 
-            renderHistory(monthKey); 
-            updateGlobalBalance(monthKey); 
+            let displayStart, displayEnd, isCurrent;
+            const periodDisplay = document.getElementById('period-display');
+            const periodDates = document.getElementById('period-dates');
+            const addCard = document.getElementById('add-transaction-card');
+            const closeBtn = document.getElementById('closing-section');
+            const archMsg = document.getElementById('archived-msg');
+
+            if (viewIndex === 0) {
+                isCurrent = true;
+                displayStart = currentPeriodStart;
+                displayEnd = null; 
+                periodDisplay.innerText = "Période Actuelle";
+                periodDisplay.className = "font-bold text-green-600 text-sm capitalize block leading-tight";
+                const d = new Date(displayStart);
+                periodDates.innerText = `Depuis le ${d.getDate()} ${d.toLocaleString('fr-FR', {month:'short'})}`;
+                addCard.classList.remove('hidden');
+                closeBtn.classList.remove('hidden');
+                archMsg.classList.add('hidden');
+            } else {
+                isCurrent = false;
+                const historyIdx = periodHistory.length - viewIndex;
+                const archived = periodHistory[historyIdx];
+                if (archived) {
+                    displayStart = archived.start;
+                    displayEnd = archived.end;
+                    periodDisplay.innerText = "Archives";
+                    periodDisplay.className = "font-bold text-gray-500 text-sm capitalize block leading-tight";
+                    const d1 = new Date(displayStart);
+                    const d2 = new Date(displayEnd);
+                    periodDates.innerText = `${d1.getDate()} ${d1.toLocaleString('fr-FR', {month:'short'})} - ${d2.getDate()} ${d2.toLocaleString('fr-FR', {month:'short'})}`;
+                }
+                addCard.classList.add('hidden');
+                closeBtn.classList.add('hidden');
+                archMsg.classList.remove('hidden');
+            }
+
+            const filteredTrans = transactions.filter(t => {
+                if (isCurrent) return t.date >= displayStart;
+                else return t.date >= displayStart && t.date <= displayEnd;
+            });
+
+            let totalExp = 0, totalInc = 0;
+            filteredTrans.forEach(t => t.type === 'expense' ? totalExp += t.amount : totalInc += t.amount);
+            let balance = salary + totalInc - totalExp;
+
+            const balEl = document.getElementById('header-balance');
+            balEl.innerText = balance.toLocaleString() + ' F';
+            balEl.className = `text-lg font-bold leading-none ${balance < 0 ? 'text-red-600' : 'text-green-700'}`;
+
+            renderBudgetBars(filteredTrans);
+            renderHistoryList(filteredTrans);
+            
+            if (isCurrent) checkNotifications();
+            
+            document.getElementById('date').valueAsDate = new Date();
+            renderCategorySelect();
             updateProjectSelect();
         }
 
-        function getMonthKey(date) {
-            return `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2, '0')}`;
-        }
-
-        function updateGlobalBalance(monthKey) {
-            // Filtrer transactions du mois
-            const monthlyTrans = transactions.filter(t => t.date.startsWith(monthKey));
-            
-            let totalExp = 0, totalInc = 0; 
-            monthlyTrans.forEach(t => t.type === 'expense' ? totalExp += t.amount : totalInc += t.amount);
-            
-            // Bilan du mois = Salaire + Entrées du mois - Sorties du mois
-            const balance = salary + totalInc - totalExp;
-            
-            const el = document.getElementById('header-balance'); 
-            el.innerText = balance.toLocaleString() + ' F';
-            el.className = `text-lg font-bold leading-none ${balance < 0 ? 'text-red-600' : 'text-green-700'}`;
-            return balance; // Retourne pour usage clôture
-        }
-
-        function renderBudgetBars(monthKey) {
+        function renderBudgetBars(transList) {
             const container = document.getElementById('budget-bars'); container.innerHTML = '';
-            const monthlyTrans = transactions.filter(t => t.date.startsWith(monthKey));
-
             categories.forEach(cat => {
-                const spent = monthlyTrans.filter(t => t.type === 'expense' && t.categoryId === cat.id).reduce((sum, t) => sum + t.amount, 0);
+                const spent = transList.filter(t => t.type === 'expense' && t.categoryId === cat.id).reduce((sum, t) => sum + t.amount, 0);
                 let percent = 0; let barColor = 'bg-blue-500'; let remainingText = '';
                 if (cat.limit > 0) {
                     percent = Math.min((spent / cat.limit) * 100, 100);
@@ -341,45 +500,58 @@
             });
         }
 
-        function renderHistory(monthKey) {
+        function renderHistoryList(transList) {
             const list = document.getElementById('journal-list'); list.innerHTML = '';
-            
-            // Filtrer par mois
-            const monthlyTrans = transactions.filter(t => t.date.startsWith(monthKey));
-            
-            if(monthlyTrans.length === 0) { list.innerHTML = '<div class="text-center text-xs text-gray-400 py-6 italic border border-dashed border-gray-200 rounded-xl">Aucune opération ce mois-ci</div>'; return; }
-
-            // Grouper par jour
-            const groups = {};
-            monthlyTrans.forEach(t => {
-                if(!groups[t.date]) groups[t.date] = [];
-                groups[t.date].push(t);
-            });
-
-            // Trier les jours (Descendant)
-            const sortedDays = Object.keys(groups).sort().reverse();
-
-            sortedDays.forEach(day => {
-                const dayDate = new Date(day);
-                const dayName = dayDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-                
-                let dayHtml = `<div class="slide-in"><div class="sticky top-0 bg-gray-50/95 backdrop-blur py-2 px-1 z-10 text-xs font-bold text-gray-500 uppercase tracking-wide border-b border-gray-200 mb-2">${dayName}</div><div class="space-y-2">`;
-                
-                // Trier transactions du jour (plus récent en haut si on avait l'heure, ici par ordre d'ajout inversé approximatif via id)
-                groups[day].sort((a,b) => b.id - a.id).forEach(t => {
-                    let label = t.desc; let color = t.type === 'expense' ? 'text-red-600' : 'text-green-600'; let sign = t.type === 'expense' ? '-' : '+';
-                    if(t.type === 'expense') {
-                        const c = categories.find(x => x.id === t.categoryId); label = c ? c.name : 'Dépense';
-                        if(t.projectId) { const p = projects.find(x => x.id === t.projectId); if(p) label = `${c.name} <i class="fas fa-arrow-right text-[8px] text-gray-400 mx-1"></i> ${p.name}`; }
-                    }
-                    dayHtml += `<div class="flex justify-between items-center bg-white border border-gray-100 p-3 rounded-xl shadow-sm"><div><div class="font-bold text-sm text-gray-700">${label}</div></div><div class="flex items-center"><div class="font-mono font-bold ${color} mr-3">${sign} ${t.amount.toLocaleString()}</div><button onclick="deleteTrans(${t.id})" class="text-gray-200 hover:text-red-400"><i class="fas fa-trash-alt text-xs"></i></button></div></div>`;
-                });
-                dayHtml += `</div></div>`;
-                list.innerHTML += dayHtml;
+            if(transList.length === 0) { list.innerHTML = '<div class="text-center text-xs text-gray-400 py-6 italic border border-dashed border-gray-200 rounded-xl">Aucune opération</div>'; return; }
+            transList.sort((a,b) => new Date(b.date) - new Date(a.date));
+            transList.forEach(t => {
+                let label = t.desc; let color = t.type === 'expense' ? 'text-red-600' : 'text-green-600'; let sign = t.type === 'expense' ? '-' : '+';
+                if(t.type === 'expense') {
+                    const c = categories.find(x => x.id === t.categoryId); label = c ? c.name : 'Dépense';
+                    if(t.projectId) { const p = projects.find(x => x.id === t.projectId); if(p) label = `${c.name} <i class="fas fa-arrow-right text-[8px] text-gray-400 mx-1"></i> ${p.name}`; }
+                }
+                const delBtn = viewIndex === 0 ? `<button onclick="deleteTrans(${t.id})" class="text-gray-200 hover:text-red-400 ml-2"><i class="fas fa-trash-alt text-xs"></i></button>` : '';
+                list.innerHTML += `<div class="flex justify-between items-center bg-white border border-gray-100 p-3 rounded-xl shadow-sm mb-2"><div><div class="font-bold text-sm text-gray-700">${label}</div><div class="text-[10px] text-gray-400">${new Date(t.date).toLocaleDateString()}</div></div><div class="flex items-center"><div class="font-mono font-bold ${color}">${sign} ${t.amount.toLocaleString()}</div>${delBtn}</div></div>`;
             });
         }
 
-        // --- GESTION FORMULAIRE ---
+        function checkNotifications() {
+            const today = new Date().getDate();
+            const notifList = document.getElementById('notif-list');
+            const badge = document.getElementById('notif-badge');
+            notifList.innerHTML = '';
+            let count = 0;
+            projects.forEach(p => {
+                if(p.reminderDay && today >= parseInt(p.reminderDay) && today < parseInt(p.reminderDay) + 3) {
+                    count++;
+                    const encodedTitle = encodeURIComponent(`Épargne ${p.name}`);
+                    const encodedDetails = encodeURIComponent(`Penser à déposer ${p.monthlyTarget}F pour le projet ${p.name}`);
+                    const calUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodedTitle}&details=${encodedDetails}`;
+                    notifList.innerHTML += `<div class="bg-red-50 p-3 rounded-xl border border-red-100 flex items-center justify-between"><div><p class="text-xs font-bold text-red-600 uppercase">Rappel du ${p.reminderDay}</p><p class="text-sm font-bold text-gray-800">${p.name}</p><p class="text-xs text-gray-500">Montant prévu : ${p.monthlyTarget.toLocaleString()} F</p></div><a href="${calUrl}" target="_blank" class="bg-white text-red-500 p-2 rounded-lg border border-red-200 text-xs shadow-sm hover:bg-red-500 hover:text-white transition"><i class="fas fa-calendar-plus"></i></a></div>`;
+                }
+            });
+            if(count > 0) { badge.classList.remove('hidden'); document.getElementById('notif-btn').classList.add('bell-shake'); } else { badge.classList.add('hidden'); document.getElementById('notif-btn').classList.remove('bell-shake'); notifList.innerHTML = '<p class="text-center text-gray-400 text-sm">Rien à signaler aujourd\'hui.</p>'; }
+        }
+        function showNotifications() { document.getElementById('notif-modal').classList.remove('hidden'); }
+
+        let currentSurplus = 0;
+        function startClosingProcess() {
+            const currentTrans = transactions.filter(t => t.date >= currentPeriodStart);
+            let totalExp = 0, totalInc = 0;
+            currentTrans.forEach(t => t.type === 'expense' ? totalExp += t.amount : totalInc += t.amount);
+            currentSurplus = salary + totalInc - totalExp;
+            document.getElementById('closing-surplus').innerText = currentSurplus.toLocaleString() + ' F';
+            document.getElementById('closing-modal').classList.remove('hidden');
+        }
+        function processClosing(action) {
+            const todayStr = new Date().toISOString().split('T')[0];
+            if (action === 'carryover' && currentSurplus > 0) { transactions.push({ id: Date.now() + 100, date: todayStr, amount: currentSurplus, type: 'income', desc: "Report période précédente 🗓️" }); } 
+            else if (action === 'project') { closeModal('closing-modal'); const list = document.getElementById('invest-list'); list.innerHTML = ''; if(projects.length === 0) { alert("Crée d'abord un projet !"); return; } projects.forEach(p => { list.innerHTML += `<button onclick="investIn(${p.id}, '${todayStr}')" class="w-full text-left p-3 border rounded-lg hover:bg-indigo-50 font-bold text-indigo-700">${p.name}</button>`; }); document.getElementById('invest-modal').classList.remove('hidden'); return; }
+            finalizeClosing(todayStr);
+        }
+        function investIn(projId, dateStr) { transactions.push({ id: Date.now(), date: dateStr, amount: currentSurplus, type: 'expense', categoryId: categories[0].id, projectId: projId, desc: "Investissement Clôture 💰" }); finalizeClosing(dateStr); closeModal('invest-modal'); }
+        function finalizeClosing(endDateStr) { periodHistory.push({ start: currentPeriodStart, end: endDateStr }); currentPeriodStart = endDateStr; saveData(); closeModal('closing-modal'); location.reload(); }
+
         function setType(type) {
             document.getElementById('trans-type').value = type;
             const btnExp = document.getElementById('btn-expense'); const btnInc = document.getElementById('btn-income');
@@ -392,126 +564,31 @@
                 catSec.classList.add('hidden'); descSec.classList.remove('hidden'); subBtn.classList.replace('bg-red-600', 'bg-green-600'); subBtn.classList.replace('hover:bg-red-700', 'hover:bg-green-700');
             }
         }
-        function renderCategoriesBtn() {
-            const div = document.getElementById('category-buttons'); div.innerHTML = '';
-            categories.forEach(c => {
-                const b = document.createElement('button'); b.type = 'button'; b.className = 'p-2 rounded-lg border border-gray-200 text-[10px] font-bold text-gray-600 bg-white hover:bg-blue-50 truncate transition cat-btn';
-                b.innerText = c.name; b.onclick = () => selectCat(b, c.id, c.name); div.appendChild(b);
-            });
-        }
-        function selectCat(btn, id, name) {
-            document.querySelectorAll('.cat-btn').forEach(b => b.className = 'p-2 rounded-lg border border-gray-200 text-[10px] font-bold text-gray-600 bg-white hover:bg-blue-50 truncate transition cat-btn');
-            btn.className = 'p-2 rounded-lg border border-blue-500 text-[10px] font-bold text-white bg-blue-600 shadow-md truncate transition cat-btn';
-            document.getElementById('category-input').value = id;
+        function renderCategorySelect() { const sel = document.getElementById('category-select'); sel.innerHTML = '<option value="" disabled selected>-- Choisir le poste --</option>'; categories.forEach(c => { sel.innerHTML += `<option value="${c.id}">${c.name}</option>`; }); }
+        function onCategoryChange(select) {
+            const id = select.value;
+            const cat = categories.find(c => c.id === id);
             const projSec = document.getElementById('project-link-section');
-            if(name.toLowerCase().includes('projet') || name.toLowerCase().includes('épargne')) { projSec.classList.remove('hidden'); } else { projSec.classList.add('hidden'); document.getElementById('project-select').value = ""; }
+            if(cat && (cat.name.toLowerCase().includes('projet') || cat.name.toLowerCase().includes('épargne'))) { projSec.classList.remove('hidden'); } else { projSec.classList.add('hidden'); document.getElementById('project-select').value = ""; }
         }
+        function updateProjectSelect() { const sel = document.getElementById('project-select'); sel.innerHTML = '<option value="">-- Aucun --</option>'; projects.forEach(p => { sel.innerHTML += `<option value="${p.id}">${p.name}</option>`; }); }
+        
         document.getElementById('transaction-form').onsubmit = (e) => {
             e.preventDefault();
             const type = document.getElementById('trans-type').value; const amount = parseInt(document.getElementById('amount').value);
             if(!amount) return;
-            // On utilise la date choisie dans le formulaire
             const t = { id: Date.now(), date: document.getElementById('date').value, amount: amount, type: type };
             if(type === 'expense') {
-                const catId = document.getElementById('category-input').value; if(!catId) { alert("Choisis un poste !"); return; }
-                t.categoryId = catId; const projId = document.getElementById('project-select').value; if(projId) t.projectId = projId; t.desc = "";
+                const catId = document.getElementById('category-select').value; 
+                if(!catId) { alert("Choisis un poste !"); return; }
+                t.categoryId = catId; 
+                const projId = document.getElementById('project-select').value; 
+                if(projId) t.projectId = projId; t.desc = "";
             } else { t.desc = document.getElementById('description').value || "Revenu"; }
-            transactions.push(t); saveData(); initDashboard(); e.target.reset(); 
-            // Reset Date au mois en cours d'affichage
-            const monthKey = getMonthKey(displayDate);
-            const todayKey = getMonthKey(new Date());
-            if(monthKey === todayKey) document.getElementById('date').valueAsDate = new Date();
-            setType(type); document.getElementById('project-link-section').classList.add('hidden');
+            transactions.push(t); saveData(); initDashboard(); e.target.reset(); document.getElementById('date').valueAsDate = new Date(); setType(type); document.getElementById('project-link-section').classList.add('hidden');
         };
         function deleteTrans(id) { if(confirm("Supprimer ?")) { transactions = transactions.filter(t => t.id !== id); saveData(); initDashboard(); } }
 
-        // --- CLÔTURE DU MOIS ---
-        let currentSurplus = 0;
-        
-        function startClosingProcess() {
-            const monthKey = getMonthKey(displayDate);
-            currentSurplus = updateGlobalBalance(monthKey); // Récupère le surplus
-            
-            if(currentSurplus <= 0) {
-                if(confirm("Tu es à zéro ou en négatif ce mois-ci. On ferme quand même ? (Rien à reporter)")) {
-                    closedMonths.push(monthKey);
-                    saveData();
-                    initDashboard();
-                }
-                return;
-            }
-
-            document.getElementById('closing-surplus').innerText = currentSurplus.toLocaleString() + ' F';
-            document.getElementById('closing-modal').classList.remove('hidden');
-        }
-
-        function processClosing(action) {
-            const monthKey = getMonthKey(displayDate);
-            const lastDay = new Date(displayDate.getFullYear(), displayDate.getMonth() + 1, 0).toISOString().split('T')[0]; // Dernier jour du mois
-
-            if(action === 'keep') {
-                // Juste fermer
-                closedMonths.push(monthKey);
-                saveData();
-                closeModal('closing-modal');
-                initDashboard();
-            } else if (action === 'carryover') {
-                // Ajouter une entrée au mois suivant
-                // Mois suivant
-                let nextMonth = new Date(displayDate);
-                nextMonth.setMonth(nextMonth.getMonth() + 1);
-                // On met la date au 1er du mois suivant
-                const nextMonthDate = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), 1).toISOString().split('T')[0];
-                
-                transactions.push({
-                    id: Date.now(),
-                    date: nextMonthDate, // Date 1er mois suivant
-                    amount: currentSurplus,
-                    type: 'income',
-                    desc: "Report du mois précédent 🗓️"
-                });
-                
-                closedMonths.push(monthKey);
-                saveData();
-                closeModal('closing-modal');
-                // Aller au mois suivant pour voir le report
-                changeMonth(1);
-            } else if (action === 'project') {
-                // Ouvrir liste projets
-                closeModal('closing-modal');
-                const list = document.getElementById('invest-list');
-                list.innerHTML = '';
-                if(projects.length === 0) { alert("Crée d'abord un projet !"); return; }
-                
-                projects.forEach(p => {
-                    list.innerHTML += `<button onclick="investIn(${p.id}, '${lastDay}', '${monthKey}')" class="w-full text-left p-3 border rounded-lg hover:bg-indigo-50 font-bold text-indigo-700">${p.name}</button>`;
-                });
-                document.getElementById('invest-modal').classList.remove('hidden');
-            }
-        }
-
-        function investIn(projId, dateStr, monthKey) {
-            // Créer dépense projet pour "sortir" l'argent du budget courant vers le projet
-            const projCat = categories.find(c => c.name.toLowerCase().includes('projet'));
-            const catId = projCat ? projCat.id : categories[0].id;
-
-            transactions.push({
-                id: Date.now(),
-                date: dateStr,
-                amount: currentSurplus,
-                type: 'expense',
-                categoryId: catId,
-                projectId: projId,
-                desc: "Investissement Clôture 💰"
-            });
-            
-            closedMonths.push(monthKey);
-            saveData();
-            closeModal('invest-modal');
-            initDashboard();
-        }
-
-        // --- AUTRES MODULES (Projets, Stats, Settings...) ---
         function renderProjects() {
             const list = document.getElementById('projects-list'); list.innerHTML = '';
             if(projects.length === 0) { list.innerHTML = `<div class="text-center py-10 text-gray-400"><i class="fas fa-rocket text-4xl mb-3 text-gray-200"></i><p>Aucun projet.</p></div>`; return; }
@@ -519,45 +596,43 @@
                 const saved = transactions.filter(t => t.projectId == p.id).reduce((sum, t) => sum + t.amount, 0);
                 const percent = Math.min((saved / p.cost) * 100, 100); const remaining = p.cost - saved;
                 let timeMsg = "Terminé ! 🎉";
-                if(remaining > 0) { if(p.monthlyTarget > 0) { const months = Math.ceil(remaining / p.monthlyTarget); timeMsg = `Encore <b>${months} mois</b>`; } else { timeMsg = "Défini un montant mensuel"; } }
-                list.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden"><div class="flex justify-between items-start mb-2"><div><h3 class="font-bold text-gray-800 text-lg">${p.name}</h3><p class="text-xs text-gray-500">Obj: ${p.cost.toLocaleString()} F</p></div><div class="text-right"><span class="block text-xl font-bold text-indigo-600">${saved.toLocaleString()} F</span><span class="text-[10px] text-gray-400">Épargnés</span></div></div><div class="w-full bg-gray-100 rounded-full h-2 mb-2"><div class="bg-indigo-500 h-2 rounded-full transition-all" style="width: ${percent}%"></div></div><div class="flex justify-between items-center bg-indigo-50 p-2 rounded-lg text-xs text-indigo-800"><span><i class="fas fa-hourglass-half mr-1"></i> ${timeMsg}</span><button onclick="deleteProject(${p.id})" class="text-indigo-300 hover:text-red-500"><i class="fas fa-trash"></i></button></div></div>`;
+                if(remaining > 0 && p.monthlyTarget > 0) { const months = Math.ceil(remaining / p.monthlyTarget); timeMsg = `Encore <b>${months} paiements</b>`; }
+                const reminderIcon = p.reminderDay ? `<span class="text-[10px] bg-red-100 text-red-500 px-2 py-1 rounded-full"><i class="fas fa-bell"></i> Le ${p.reminderDay}</span>` : '';
+                list.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden"><div class="flex justify-between items-start mb-2"><div><h3 class="font-bold text-gray-800 text-lg">${p.name}</h3><div class="flex gap-2 items-center"><p class="text-xs text-gray-500">Obj: ${p.cost.toLocaleString()} F</p>${reminderIcon}</div></div><div class="text-right"><span class="block text-xl font-bold text-indigo-600">${saved.toLocaleString()} F</span><span class="text-[10px] text-gray-400">Épargnés</span></div></div><div class="w-full bg-gray-100 rounded-full h-2 mb-2"><div class="bg-indigo-500 h-2 rounded-full transition-all" style="width: ${percent}%"></div></div><div class="flex justify-between items-center bg-indigo-50 p-2 rounded-lg text-xs text-indigo-800"><span><i class="fas fa-hourglass-half mr-1"></i> ${timeMsg}</span><button onclick="deleteProject(${p.id})" class="text-indigo-300 hover:text-red-500"><i class="fas fa-trash"></i></button></div></div>`;
             });
         }
         function openProjectModal() { document.getElementById('project-modal').classList.remove('hidden'); }
         function createProject() {
             const name = document.getElementById('proj-name').value; const cost = parseInt(document.getElementById('proj-cost').value); const monthly = parseInt(document.getElementById('proj-monthly').value);
-            if(name && cost) { projects.push({ id: Date.now(), name: name, cost: cost, monthlyTarget: monthly || 0 }); saveData(); renderProjects(); updateProjectSelect(); closeModal('project-modal'); }
+            const reminder = document.getElementById('proj-reminder').value;
+            if(name && cost) { projects.push({ id: Date.now(), name: name, cost: cost, monthlyTarget: monthly || 0, reminderDay: reminder }); saveData(); renderProjects(); updateProjectSelect(); closeModal('project-modal'); }
         }
         function deleteProject(id) { if(confirm("Supprimer ?")) { projects = projects.filter(p => p.id !== id); saveData(); renderProjects(); updateProjectSelect(); } }
-        function updateProjectSelect() { const sel = document.getElementById('project-select'); sel.innerHTML = '<option value="">-- Aucun projet spécifique --</option>'; projects.forEach(p => { sel.innerHTML += `<option value="${p.id}">${p.name}</option>`; }); }
 
-        function renderStats() {
+        function renderArchive() {
             const list = document.getElementById('stats-list'); list.innerHTML = '';
-            const stats = {}; transactions.forEach(t => { const date = new Date(t.date); const key = `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2, '0')}`; if(!stats[key]) stats[key] = { income: 0, expense: 0 }; if(t.type === 'expense') stats[key].expense += t.amount; else stats[key].income += t.amount; });
-            const keys = Object.keys(stats).sort().reverse();
-            if(keys.length === 0) { list.innerHTML = '<p class="text-center text-gray-400 mt-10">Pas assez de données.</p>'; return; }
-            keys.forEach(k => {
-                const [year, month] = k.split('-'); const monthName = new Date(year, month - 1).toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
-                const s = stats[k]; const result = salary + s.income - s.expense;
-                list.innerHTML += `<div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100"><h3 class="font-bold text-gray-800 capitalize mb-3 border-b pb-2">${monthName}</h3><div class="grid grid-cols-3 gap-2 text-center"><div class="bg-green-50 p-2 rounded-lg"><div class="text-[10px] text-green-600 font-bold uppercase">Entrées</div><div class="text-sm font-bold text-green-700">+${(salary + s.income).toLocaleString()}</div></div><div class="bg-red-50 p-2 rounded-lg"><div class="text-[10px] text-red-600 font-bold uppercase">Dépenses</div><div class="text-sm font-bold text-red-700">-${s.expense.toLocaleString()}</div></div><div class="bg-blue-50 p-2 rounded-lg border border-blue-100"><div class="text-[10px] text-blue-600 font-bold uppercase">Résultat</div><div class="text-sm font-bold ${result >= 0 ? 'text-blue-700' : 'text-red-600'}">${result.toLocaleString()}</div></div></div></div>`;
+            if(periodHistory.length === 0) { list.innerHTML = '<p class="text-center text-gray-400 mt-10">Aucune archive.</p>'; return; }
+            [...periodHistory].reverse().forEach(h => {
+                const d1 = new Date(h.start); const d2 = new Date(h.end);
+                list.innerHTML += `<div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100"><h3 class="font-bold text-gray-800 border-b pb-2 mb-2">Période du ${d1.toLocaleDateString()} au ${d2.toLocaleDateString()}</h3><p class="text-xs text-gray-500">Consulter les détails via les flèches < > en haut.</p></div>`;
             });
         }
 
-        // --- SETTINGS ---
         function openSettings() { document.getElementById('settings-modal').classList.remove('hidden'); const cont = document.getElementById('settings-content'); cont.innerHTML = `<div class="mb-4"><label class="text-xs font-bold text-gray-500 uppercase">Salaire Mensuel</label><input type="number" id="set-salary" value="${salary}" class="w-full p-2 border rounded font-bold"></div><div id="cat-list-edit" class="space-y-2"></div>`; const list = document.getElementById('cat-list-edit'); categories.forEach((c, idx) => { list.innerHTML += `<div class="flex gap-2"><input type="text" value="${c.name}" id="cat-name-${idx}" class="flex-1 p-2 border rounded text-xs font-bold"><input type="number" value="${c.limit}" id="cat-limit-${idx}" class="w-20 p-2 border rounded text-xs font-bold" placeholder="Budget"><button onclick="delCat(${idx})" class="text-red-500 px-2"><i class="fas fa-trash"></i></button></div>`; }); }
         function addNewCat() { categories.push({id: 'c'+Date.now(), name: 'Nouveau', limit: 0}); saveData(); openSettings(); }
         function delCat(idx) { if(confirm("Supprimer ?")) { categories.splice(idx, 1); saveData(); openSettings(); } }
         function saveSettings() { salary = parseInt(document.getElementById('set-salary').value) || 0; categories.forEach((c, idx) => { const n = document.getElementById(`cat-name-${idx}`); const l = document.getElementById(`cat-limit-${idx}`); if(n) c.name = n.value; if(l) c.limit = parseInt(l.value) || 0; }); saveData(); closeModal('settings-modal'); initDashboard(); }
-
-        // --- UTILS ---
         function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
-        function saveData() { localStorage.setItem('salary', salary); localStorage.setItem('categories', JSON.stringify(categories)); localStorage.setItem('transactions', JSON.stringify(transactions)); localStorage.setItem('projects', JSON.stringify(projects)); localStorage.setItem('closedMonths', JSON.stringify(closedMonths)); }
-        function exportData() { const data = {salary, categories, transactions, projects, closedMonths}; const blob = new Blob([JSON.stringify(data)], {type: 'application/json'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'budget_backup.json'; a.click(); }
+        function saveData() { localStorage.setItem('salary', salary); localStorage.setItem('categories', JSON.stringify(categories)); localStorage.setItem('transactions', JSON.stringify(transactions)); localStorage.setItem('projects', JSON.stringify(projects)); localStorage.setItem('periodHistory', JSON.stringify(periodHistory)); localStorage.setItem('currentPeriodStart', currentPeriodStart); }
+        function exportData() { const data = {salary, categories, transactions, projects, periodHistory, currentPeriodStart, securityConfig}; const blob = new Blob([JSON.stringify(data)], {type: 'application/json'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'budget_backup.json'; a.click(); }
         function importDataClick() { document.getElementById('import-input').click(); }
-        function importDataFile(input) { const file = input.files[0]; if(!file) return; const r = new FileReader(); r.onload = (e) => { try { const d = JSON.parse(e.target.result); if(confirm("Écraser les données ?")) { salary = d.salary || 0; categories = d.categories || []; transactions = d.transactions || []; projects = d.projects || []; closedMonths = d.closedMonths || []; saveData(); location.reload(); } } catch(err) { alert("Erreur fichier"); } }; r.readAsText(file); }
+        function importDataFile(input) { const file = input.files[0]; if(!file) return; const r = new FileReader(); r.onload = (e) => { try { const d = JSON.parse(e.target.result); if(confirm("Écraser les données ?")) { salary = d.salary || 0; categories = d.categories || []; transactions = d.transactions || []; projects = d.projects || []; periodHistory = d.periodHistory || []; currentPeriodStart = d.currentPeriodStart || new Date().toISOString().split('T')[0]; securityConfig = d.securityConfig || null; saveData(); location.reload(); } } catch(err) { alert("Erreur fichier"); } }; r.readAsText(file); }
         function fullReset() { if(confirm("TOUT EFFACER ?")) { localStorage.clear(); location.reload(); } }
 
-        initDashboard();
+        // DEMARRAGE : Check Auth avant tout
+        checkAuth();
+        // initDashboard sera appelé par unlockApp ou si pas de sécu
+
     </script>
 </body>
 </html>
