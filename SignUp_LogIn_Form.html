@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion de mon budget - Connexion</title>
+    <link rel="stylesheet" href="SignUp_LogIn_Form.css">
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <!-- credits to the writter @leonam-silva-de-souza -->
+    <div class="container">
+        
+        <!-- AJOUTÉ POUR MODE SOMBRE/CLAIR : Bouton toggle thème -->
+        <div class="theme-toggle">
+            <i class='bx bx-sun'></i>
+            <i class='bx bx-moon'></i>
+        </div>
+        <!-- FIN AJOUT -->
+
+        <div class="form-box login">
+            <form action="#">
+                <h1>Connexion</h1>
+                <div class="input-box">
+                    <input type="text" placeholder="Nom d'utilisateur ou Email" required>
+                    <i class='bx bxs-user'></i>
+                </div>
+                <div class="input-box">
+                    <input type="password" placeholder="Mot de passe" required id="login-password"> <!-- AJOUT ID POUR JS -->
+                    <i class='bx bxs-lock-alt'></i>
+                    <!-- AJOUTÉ : Icône œil pour afficher/masquer le mot de passe -->
+                    <i class='bx bx-show eye-toggle' data-target="login-password"></i>
+                    <!-- FIN AJOUT -->
+                </div>
+                <div class="forgot-link">
+                    <a href="#">Mot de passe oublié ?</a>
+                </div>
+                <div class="error-message" id="login-error"></div>
+                <button type="submit" class="btn">Se connecter</button>
+                <p>ou connecter avec</p>
+                <div class="social-icons">
+                    <a href="#" id="google-login"><i class='bx bxl-google'></i></a>
+                    <a href="#" id="github-login"><i class='bx bxl-github'></i></a>
+                    <!-- Tu peux laisser ou enlever Facebook et LinkedIn -->
+                </div>
+            </form>
+        </div>
+        <div class="form-box register">
+            <form action="#" id="register-form"> <!-- AJOUT ID pour cibler le formulaire -->
+                <h1>Inscription</h1>
+                <div class="input-box">
+                    <input type="text" placeholder="Nom d'utilisateur" required id="register-username">
+                    <i class='bx bxs-user'></i>
+                </div>
+                <div class="input-box">
+                    <input type="email" placeholder="Email" required id="register-email">
+                    <i class='bx bxs-envelope' ></i>
+                </div>
+                <div class="input-box">
+                    <input type="password" placeholder="Mot de passe" required id="register-password">
+                    <i class='bx bxs-lock-alt' ></i>
+                    <i class='bx bx-show eye-toggle' data-target="register-password"></i>
+                </div>
+                <div class="input-box">
+                    <input type="password" placeholder="Confirmer le mot de passe" required id="confirm-password">
+                    <i class='bx bxs-lock-alt' ></i>
+                    <i class='bx bx-show eye-toggle' data-target="confirm-password"></i>
+                </div>
+
+                <!-- AJOUTÉ : Zone pour messages d'erreur -->
+                <div class="error-message" id="register-error"></div>
+                <!-- FIN AJOUT -->
+
+                <button type="submit" class="btn">S'inscrire</button>
+                <p>ou connecter avec</p>
+                <div class="social-icons">
+                    <a href="#" id="google-login"><i class='bx bxl-google'></i></a>
+                    <a href="#" id="github-login"><i class='bx bxl-github'></i></a>
+                <!-- Tu peux laisser ou enlever Facebook et LinkedIn -->
+                </div>
+            </form>
+        </div>
+        <div class="toggle-box">
+            <div class="toggle-panel toggle-left">
+                <!-- MODIFIÉ : Texte dynamique Bonjour/Bonsoir -->
+                <h1 id="greeting-message">Bonjour, bienvenue !</h1>
+                <!-- FIN MODIF -->
+                <p>Vous n'avez pas encore de compte ?</p>
+                <button class="btn register-btn">S'inscrire</button>
+            </div>
+            <div class="toggle-panel toggle-right">
+                <h1>Content de vous revoir !</h1>
+                <p>Vous avez déjà un compte ?</p>
+                <button class="btn login-btn">Se connecter</button>
+            </div>
+        </div>
+    </div>
+    <script src="SignUp_LogIn_Form.js"></script>
+</body>
+</html>

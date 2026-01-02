@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion de mon budget - Tableau de bord</title>
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Poppins", sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(90deg, #f0f2f5, #d9e2ff);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background 0.6s ease;
+        }
+
+        body.dark {
+            background: linear-gradient(90deg, #1a1a2e, #16213e);
+        }
+
+        .dashboard {
+            position: relative;
+            width: 900px;
+            max-width: 95%;
+            background: #fff;
+            border-radius: 30px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.2);
+            padding: 60px 40px;
+            text-align: center;
+        }
+
+        body.dark .dashboard {
+            background: #2d2d44;
+            color: #e0e0ff;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .theme-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            z-index: 10;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        body.dark .theme-toggle {
+            background: rgba(50, 50, 70, 0.8);
+        }
+
+        .theme-toggle i {
+            font-size: 24px;
+            position: absolute;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            color: #333;
+        }
+
+        body.dark .theme-toggle i {
+            color: #e0e0ff;
+        }
+
+        .theme-toggle .bx-sun { opacity: 1; transform: rotate(0deg); }
+        .theme-toggle .bx-moon { opacity: 0; transform: rotate(90deg); }
+        body.dark .theme-toggle .bx-sun { opacity: 0; transform: rotate(-90deg); }
+        body.dark .theme-toggle .bx-moon { opacity: 1; transform: rotate(0deg); }
+
+        h1 {
+            font-size: 38px;
+            margin-bottom: 20px;
+        }
+
+        .username {
+            color: #7494ec;
+            font-weight: 600;
+        }
+
+        body.dark .username {
+            color: #bb86fc;
+        }
+
+        .info {
+            font-size: 20px;
+            margin: 40px 0;
+            color: #555;
+            line-height: 1.6;
+        }
+
+        body.dark .info {
+            color: #aaa;
+        }
+
+        .logout-btn {
+            width: 220px;
+            height: 52px;
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: #ff5252;
+        }
+
+        body.dark .logout-btn {
+            background: #c92a2a;
+        }
+
+        body.dark .logout-btn:hover {
+            background: #a81c1c;
+        }
+
+        .footer {
+            position: absolute;
+            bottom: 15px;
+            right: 25px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        body.dark .footer {
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="theme-toggle">
+            <i class='bx bx-sun'></i>
+            <i class='bx bx-moon'></i>
+        </div>
+
+        <h1>Bienvenue, <span id="username-display" class="username">...</span> !</h1>
+        <p class="info">
+            Ton tableau de bord personnel pour gérer ton budget est en construction 🚀<br>
+            Bientôt : suivi du salaire, ajout de dépenses, graphiques, objectifs d'épargne...
+        </p>
+
+        <button class="logout-btn" id="logout-btn">Se déconnecter</button>
+
+        <div class="footer">
+            Développé par <strong>Emmanuel Kpan</strong>
+        </div>
+    </div>
+
+    <script>
+        // --- SUPABASE ---
+        const supabaseUrl = 'https://cqzsamqyhdwejogxxohm.supabase.co';
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxenNhbXF5aGR3ZWpvZ3h4b2htIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4Mzg0NjYsImV4cCI6MjA4MjQxNDQ2Nn0.igWJ7Ct5tXpxrd-MmRjBLlPehHmeOpHLd8ee9Xm_30w';
+        const { createClient } = supabase;
+        const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+
+        // --- THÈME (même système que login) ---
+        const themeToggle = document.querySelector('.theme-toggle');
+        const body = document.body;
+
+        function isNightTime() {
+            const hour = new Date().getHours();
+            return hour >= 18 || hour < 6;
+        }
+
+        function applyAutoTheme() {
+            if (isNightTime()) {
+                body.classList.add('dark');
+            } else {
+                body.classList.remove('dark');
+            }
+        }
+
+        applyAutoTheme();
+        setInterval(applyAutoTheme, 3600000);
+
+        themeToggle.addEventListener('click', () => {
+            body.classList.toggle('dark');
+        });
+
+        // --- CHARGEMENT UTILISATEUR ---
+        async function loadUser() {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+
+            if (!session) {
+                window.location.href = "SignUp_LogIn_Form.html";
+                return;
+            }
+
+            const username = session.user.user_metadata?.username || session.user.email.split('@')[0];
+            document.getElementById('username-display').textContent = username;
+        }
+
+        // --- DÉCONNEXION ---
+        document.getElementById('logout-btn').addEventListener('click', async () => {
+            await supabaseClient.auth.signOut();
+            window.location.href = "SignUp_LogIn_Form.html";
+        });
+
+        // --- PROTECTION ---
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+            if (!session) {
+                window.location.href = "SignUp_LogIn_Form.html";
+            }
+        });
+
+        loadUser();
+    </script>
+</body>
+</html>
